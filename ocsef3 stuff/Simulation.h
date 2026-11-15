@@ -17,7 +17,6 @@ class Simulation
 		std::vector<Object> simulationObjects;
 		void RK1()
 		{
-			double lowestDistance = 218323239*2313223231;
 			for (Object& obj : simulationObjects)
 			{
 
@@ -143,7 +142,7 @@ class Simulation
 		void Update(int& objectToTrack)
 		{
 			double slowDownThreshold = 15000000.0;
-			double lowestDistance = 218323239 * 2313223231;
+			double lowestDistance = 218323239.0 * 2313223231.0;
 			for (Object& obj : simulationObjects)
 			{
 				for (const Object& obj2 : simulationObjects)

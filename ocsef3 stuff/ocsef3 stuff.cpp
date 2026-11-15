@@ -10,18 +10,145 @@ ADVANCED 2: Develop a guardrail on an online system or in the future which can h
 #include <rlgl.h>
 #include <string>
 #include <array>
+#if defined(PLATFORM_WEB)
+#include <emscripten/emscripten.h>
+#endif
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
+
+
+Vector3d realCameraPosition{};
+Camera worldCamera{};
+
+bool paused = true;
+float camSpeed = 1000000;
+bool cursor = false;
+int objectToTrack = -1;
+double simTime = 0.0f;
+bool enableCreateGUI = false;
+bool highlight[8] = { false };
+float createMass = 0;
+float createRadius = 0;
+std::array<char[1223], 5> floatText{ 0 };
+float initialOrbitCameraDist = 0;
+bool placeMode = false;
+Simulation sim;
+void UpdateGame()
+{
+	if (!paused)
+	{
+		sim.Update(objectToTrack);
+		simTime += sim.timestep;
+	}
+	if (IsKeyPressed(KEY_ESCAPE))
+	{
+		if (cursor)
+		{
+			DisableCursor();
+		}
+		else
+		{
+			EnableCursor();
+		}
+		cursor = !cursor;
+	}
+	if ((enableCreateGUI || placeMode) && !cursor)
+	{
+		cursor = true;
+		EnableCursor();
+	}
+	if (IsKeyPressed(KEY_K))
+	{
+		objectToTrack++;
+		initialOrbitCameraDist = sim.simulationObjects[objectToTrack].radius * 12.0;
+		if (objectToTrack >= sim.simulationObjects.size())
+		{
+			objectToTrack = -1;
+		}
+	}
+	if (!cursor && objectToTrack == -1)
+	{
+		UpdateCameraCustom(&worldCamera, &camSpeed, realCameraPosition);
+	}
+
+	else if (objectToTrack != -1)
+	{
+		//worldCamera.target = static_cast<Vector3>(Vector3dNormalize(Vector3dSubtract(realCameraPosition, sim.simulationObjects[objectToTrack].position)));
+		UpdateOrbitalCamera(worldCamera, realCameraPosition, sim.simulationObjects[objectToTrack].position, initialOrbitCameraDist, !cursor);
+	}
+
+	if (IsKeyPressed(KEY_P)) paused = !paused;
+	BeginDrawing();
+	ClearBackground(BLACK);
+
+	BeginMode3D(worldCamera);
+	sim.Draw(realCameraPosition);
+	if (placeMode)
+	{
+		rlSetClipPlanes(1.0, 1000.0);
+		Ray ray = GetScreenToWorldRay(GetMousePosition(), worldCamera);
+		float depth = createRadius * 3.0f;
+
+		Vector3 cursor3D = Vector3Add(ray.position, Vector3Scale(ray.direction, depth));
+		rlSetClipPlanes(1.0, 123123123123123123123123123123123123123.0);
+		DrawSphereWires(cursor3D, createRadius, 10, 10, GREEN);
+		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+		{
+			sim.AddObject(createMass * 5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::models[0], floatText[2]);
+			placeMode = false;
+		}
+	}
+	EndMode3D();
+	sim.Draw2D(realCameraPosition, worldCamera);
+	DrawText(std::string("Simulation Time: " + std::to_string(simTime) + " seconds").c_str(), 10, 10, 25, WHITE);
+	if (objectToTrack != -1)
+	{
+		DrawText(std::string("Currently viewing object: " + sim.simulationObjects[objectToTrack].name).c_str(), 10, 70, 25, WHITE);
+	}
+	if (GuiButton(Rectangle{ 24, 80, 120, 30 }, "+ Add Object"))
+	{
+		enableCreateGUI = !enableCreateGUI;
+	}
+	if (objectToTrack != -1)
+	{
+		if (GuiButton(Rectangle{ 24, 130, 120, 30 }, "- Delete Tracked Object"))
+		{
+			sim.simulationObjects.erase(sim.simulationObjects.begin() + objectToTrack);
+		}
+	}
+	if (GuiValueBoxFloat(Rectangle(10, 370, 120, 30), "Global Timestep (s/t)", floatText[3], &sim.timestep, highlight[4])) highlight[4] = !highlight[4];
+	if (enableCreateGUI)
+	{
+		DrawRectangle(300, 300, 500, 500, WHITE);
+
+		if (GuiValueBoxFloat(Rectangle(310, 310, 480, 50), "Mass (Earths)", floatText[0], &createMass, highlight[0])) highlight[0] = !highlight[0];
+		if (GuiValueBoxFloat(Rectangle(310, 370, 480, 50), "Radius (m)", floatText[1], &createRadius, highlight[1])) highlight[1] = !highlight[1];
+		if (GuiTextBox(Rectangle(310, 430, 480, 50), floatText[2], 25, highlight[2])) highlight[2] = !highlight[2];
+
+		if (GuiButton(Rectangle(310, 490, 480, 50), "Create!"))
+		{
+			placeMode = true;
+			enableCreateGUI = false;
+		}
+	}
+	EndDrawing();
+}
+
 int main()
 {
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	
 	InitWindow(400, 500, "Test");
 	SetExitKey(KEY_F8);
-	Simulation sim;
+
 	sim.timestep = 1.0f;
 	sim.substeps = 10000;
 	Objects::Load();
+	worldCamera.position = Vector3{ -0.0f,0.0f,0.0f };
+	worldCamera.target = Vector3{ 3.0f,0.0f,0.0f };
+	worldCamera.projection = CAMERA_PERSPECTIVE;
+	worldCamera.up = Vector3{ 0.0f,1.0f,0.0f };
+	worldCamera.fovy = 45.0f;
 	// Sun (Radius: 696,340 km)
 // Didymos (Primary Asteroid: ~780 m diameter, mass ~5.2e11 kg)
 // Sun
@@ -45,127 +172,18 @@ int main()
 	//Comment out the below to see the impact trajectory of the asteroid!
 	sim.AddObject(5e9, Vector3d(0.0, 1.0e9, 1.4960e11), Vector3d(29770.0, -100000.0, 0.0), 500.0, RED, &Objects::models[2], "Deflector");
 
-
-	Vector3d realCameraPosition{};
-	Camera worldCamera{};
-	worldCamera.position = Vector3{ -0.0f,0.0f,0.0f };
-	worldCamera.target = Vector3{ 3.0f,0.0f,0.0f };
-	worldCamera.projection = CAMERA_PERSPECTIVE;
-	worldCamera.up = Vector3{ 0.0f,1.0f,0.0f };
-	worldCamera.fovy = 45.0f;
-	bool paused = true;
-	float camSpeed = 1000000;
-	bool cursor = false;
-	int objectToTrack = -1;
-	double simTime = 0.0f;
-	bool enableCreateGUI = false;
-	bool highlight[8] = { false };
-	float createMass = 0;
-	float createRadius = 0;
-	std::array<char[1223], 5> floatText{0};
-	float initialOrbitCameraDist = 0;
 	DisableCursor();
 	SetTargetFPS(62321320);
 	rlSetClipPlanes(1.0, 123123123123123123123123123123123123123.0);
-	bool placeMode = false;
+#if defined(PLATFORM_WEB)
+	// 0 = use browser's native refresh rate (recommended), 1 = simulate infinite loop
+	emscripten_set_main_loop(UpdateGame, 0, 1);
+#else
 	while (!WindowShouldClose())
 	{
-		if (!paused)
-		{
-			sim.Update(objectToTrack);
-			simTime += sim.timestep;
-		}
-		if (IsKeyPressed(KEY_ESCAPE))
-		{
-			if (cursor)
-			{
-				DisableCursor();
-			}
-			else
-			{
-				EnableCursor();
-			}
-			cursor = !cursor;
-		}
-		if ((enableCreateGUI || placeMode) && !cursor)
-		{
-			cursor = true;
-			EnableCursor();
-		}
-		if (IsKeyPressed(KEY_K))
-		{
-			objectToTrack++;
-			initialOrbitCameraDist = sim.simulationObjects[objectToTrack].radius * 12.0;
-			if (objectToTrack >= sim.simulationObjects.size())
-			{
-				objectToTrack = -1;
-			}
-		}
-		if (!cursor && objectToTrack == -1)
-		{
-			UpdateCameraCustom(&worldCamera, &camSpeed,realCameraPosition);
-		}
-
-		else if (objectToTrack != -1)
-		{
-			//worldCamera.target = static_cast<Vector3>(Vector3dNormalize(Vector3dSubtract(realCameraPosition, sim.simulationObjects[objectToTrack].position)));
-			UpdateOrbitalCamera(worldCamera,realCameraPosition, sim.simulationObjects[objectToTrack].position, initialOrbitCameraDist,!cursor);
-		}
-
-		if (IsKeyPressed(KEY_P)) paused = !paused;
-		BeginDrawing();
-			ClearBackground(BLACK);
-
-			BeginMode3D(worldCamera);
-				sim.Draw(realCameraPosition);
-				if (placeMode)
-				{
-					rlSetClipPlanes(1.0, 1000.0);
-					Ray ray = GetScreenToWorldRay(GetMousePosition(), worldCamera);
-					float depth = createRadius*3.0f; 
-					
-					Vector3 cursor3D = Vector3Add(ray.position, Vector3Scale(ray.direction, depth));
-					rlSetClipPlanes(1.0, 123123123123123123123123123123123123123.0);
-					DrawSphereWires(cursor3D, createRadius, 10, 10, GREEN);
-					if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-					{
-						sim.AddObject(createMass*5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::models[0], floatText[2]);
-						placeMode = false;
-					}
-				}
-			EndMode3D();
-			sim.Draw2D(realCameraPosition, worldCamera);
-			DrawText(std::string("Simulation Time: " + std::to_string(simTime) + " seconds").c_str(), 10, 10, 25, WHITE);
-			if (objectToTrack != -1)
-			{
-				DrawText(std::string("Currently viewing object: " + sim.simulationObjects[objectToTrack].name).c_str(), 10, 70, 25, WHITE);
-			}
-			if (GuiButton(Rectangle{ 24, 80, 120, 30 }, "+ Add Object"))
-			{
-				enableCreateGUI = !enableCreateGUI;
-			}
-			if (objectToTrack != -1)
-			{
-				if (GuiButton(Rectangle{ 24, 130, 120, 30 }, "- Delete Tracked Object"))
-				{
-					sim.simulationObjects.erase(sim.simulationObjects.begin() + objectToTrack);
-				}
-			}
-			if (GuiValueBoxFloat(Rectangle(10, 370, 120, 30), "Global Timestep (s/t)", floatText[3], &sim.timestep, highlight[4])) highlight[4] = !highlight[4];
-			if (enableCreateGUI)
-			{
-				DrawRectangle(300, 300, 500, 500, WHITE);
-				
-				if (GuiValueBoxFloat(Rectangle(310, 310, 480, 50), "Mass (Earths)", floatText[0], &createMass, highlight[0])) highlight[0] = !highlight[0];
-				if (GuiValueBoxFloat(Rectangle(310, 370, 480, 50), "Radius (m)", floatText[1], &createRadius, highlight[1])) highlight[1] = !highlight[1];
-				if (GuiTextBox(Rectangle(310,430,480,50),floatText[2],25,highlight[2])) highlight[2] = !highlight[2];
-
-				if (GuiButton(Rectangle(310, 490, 480, 50), "Create!"))
-				{
-					placeMode = true;
-					enableCreateGUI = false;
-				}
-			}
-		EndDrawing();
+		UpdateGame();
 	}
+#endif
+	CloseWindow();
+	return 0;
 }
