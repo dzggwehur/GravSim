@@ -6,5 +6,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="ocsef3 stuff/ocsef3 stuff.vcxproj" Id="b846c132-734f-40d8-8534-909dc0e2ec03" />
+  <Project Path="gravsim/gravsim.vcxproj" Id="b846c132-734f-40d8-8534-909dc0e2ec03" />
 </Solution>
