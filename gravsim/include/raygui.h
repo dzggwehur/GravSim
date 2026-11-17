@@ -1625,8 +1625,6 @@ static Vector3 ConvertRGBtoHSV(Vector3 rgb);                    // Convert color
 
 static void GuiTooltip(Rectangle controlRec);                   // Draw tooltip using control rec position
 static int GuiScrollBar(Rectangle bounds, int value, int minValue, int maxValue); // Scroll bar control, used by GuiScrollPanel()
-static int GuiFontIconBaking(Image *imFont, Font font, Rectangle *whiteRec); // Update font image atlas to append raygui icons
-
 static Color GuiFade(Color color, float alpha); // Fade color by an alpha factor
 
 //----------------------------------------------------------------------------------
@@ -6017,90 +6015,6 @@ static int GuiScrollBar(Rectangle bounds, int value, int minValue, int maxValue)
     //--------------------------------------------------------------------
 
     return value;
-}
-
-// Update font image atlas to append raygui icons
-static int GuiFontIconBaking(Image *imFont, Font font, Rectangle *whiteRec)
-{
-    int iconOffsetY = 0;
-
-    // Check max glyph rec y bottom position in the atlas image,
-    // to start drawing icons below that line
-    int maxGlyphRecY = 0;
-    for (int i = 0; i < font.glyphCount; i++)
-    {
-        if ((font.recs[i].y + font.recs[i].height) > maxGlyphRecY)
-            maxGlyphRecY = (int)font.recs[i].y + (int)font.recs[i].height;
-    }
-
-    int maxIconsPerLine = imFont->width/(RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING);
-    int reqIconLines = RAYGUI_ICON_MAX_FONT_BACKED/maxIconsPerLine + RAYGUI_ICON_MAX_FONT_BACKED%maxIconsPerLine + 1; // One extra line
-    int reqHeight = reqIconLines*(RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING);
-
-    // Check if image requires scaling and how much
-    if ((maxGlyphRecY + reqHeight) > imFont->height)
-    {
-        int newImHeight = 1;
-        while (newImHeight < (maxGlyphRecY + reqHeight)) newImHeight <<= 1; // Round to next POT
-
-        char *newImData = (char *)RL_CALLOC(imFont->width*newImHeight*2, sizeof(char));
-        memcpy(newImData, imFont->data, imFont->width*imFont->height*2);
-        RL_FREE(imFont->data);
-
-        // Clear imFont bottom-right corner rec
-        for (int y = 0; y < 4; y++)
-            for (int x = 0; x < 4; x++)
-                ((unsigned short *)newImData)[(imFont->height - y - 1)*imFont->width + imFont->width - x - 1] = 0x0000;
-
-        imFont->data = newImData;
-        imFont->height = newImHeight;
-
-        // Set new image white corner and new white rec
-        for (int y = 0; y < 3; y++)
-            for (int x = 0; x < 3; x++)
-                ((unsigned short *)newImData)[(imFont->height - y - 1)*imFont->width + imFont->width - x - 1] = 0xffff;
-
-        *whiteRec = RAYGUI_CLITERAL(Rectangle){ (float)imFont->width - 2, (float)imFont->height - 2, 1, 1 };
-    }
-
-    // Calculate image offset positions to start drawing
-    // NOTE: For Y, look for a multiple of icon size + 2*padding, for better alignment
-    int offsetX = RAYGUI_ICON_FONT_ATLAS_PADDING;
-    int offsetY = ((maxGlyphRecY + (RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING - 1))/
-        (RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING))*(RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING) +
-        RAYGUI_ICON_FONT_ATLAS_PADDING;
-
-    iconOffsetY = offsetY - RAYGUI_ICON_FONT_ATLAS_PADDING;
-    unsigned short *pixels = (unsigned short *)imFont->data;
-
-    #define BIT_CHECK(a,b) ((a) & (1u<<(b)))
-
-    for (int iconId = 0; iconId < RAYGUI_ICON_MAX_FONT_BACKED; iconId++)
-    {
-        // Wrap to next line if next icon won't fit
-        if ((offsetX + (RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING)) > imFont->width)
-        {
-            offsetX = RAYGUI_ICON_FONT_ATLAS_PADDING;
-            offsetY += RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING;
-        }
-
-        for (int i = 0, y = 0; i < RAYGUI_ICON_DATA_ELEMENTS; i++)
-        {
-            unsigned int data = guiIconsPtr[iconId*RAYGUI_ICON_DATA_ELEMENTS + i];
-
-            for (int k = 0; k < 32; k++)
-            {
-                pixels[(offsetY + y)*imFont->width + offsetX + k%16] = (BIT_CHECK(data, k))? 0xffff : 0x00ff;
-
-                if ((k == 15) || (k == 31)) y++;
-            }
-        }
-
-        // Update current icon X position
-        offsetX += (RAYGUI_ICON_SIZE + 2*RAYGUI_ICON_FONT_ATLAS_PADDING);
-    }
-
-    return iconOffsetY;
 }
 
 // Split controls text into multiple strings

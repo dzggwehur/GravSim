@@ -110,20 +110,6 @@ static void CameraMoveRight(Camera* camera, double distance, bool moveInWorldPla
 }
 
 // Moves the camera position closer/farther to/from the camera target
-static void CameraMoveToTarget(Camera* camera, float delta, Vector3d& worldCamPos)
-{
-    double distance = Vector3Distance(camera->position, camera->target);
-
-    // Apply delta
-    distance += delta;
-
-    // Distance must be greater than 0
-    if (distance <= 0) distance = 0.001f;
-
-    // Set new distance by moving the position along the forward vector
-    Vector3 forward = GetCameraForward(camera);
-    worldCamPos += Vector3Add(camera->target, Vector3Scale(forward, -distance));
-}
 
 // Rotates the camera around its up vector
 // Yaw is "looking left and right"
@@ -211,8 +197,6 @@ void UpdateCameraCustom(Camera* camera, float* camSpeed, Vector3d& worldCamPos)
     // Camera speeds based on frame time
     float cameraMoveSpeed = *camSpeed * GetFrameTime();
     float cameraRotationSpeed = CAMERA_ROTATION_SPEED * GetFrameTime();
-    float cameraPanSpeed = CAMERA_PAN_SPEED * GetFrameTime();
-    float cameraOrbitalSpeed = CAMERA_ORBITAL_SPEED * GetFrameTime();
     CameraYaw(camera, -mousePositionDelta.x * CAMERA_MOUSE_MOVE_SENSITIVITY, false);
     CameraPitch(camera, -mousePositionDelta.y * CAMERA_MOUSE_MOVE_SENSITIVITY, true, false, false);
     // Camera rotation

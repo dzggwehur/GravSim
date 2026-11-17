@@ -66,6 +66,7 @@
     <PlatformToolset>ClangCL</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <EnableASAN>true</EnableASAN>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Web Release|x64'" Label="Configuration">
     <ConfigurationType>Makefile</ConfigurationType>
@@ -181,6 +182,11 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp23</LanguageStandard>
       <AdditionalIncludeDirectories>C:\Users\rusla\source\repos\gravsim\gravsim\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <TreatWarningAsError>true</TreatWarningAsError>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -221,6 +227,7 @@
     </ClInclude>
     <ClInclude Include="raymathDouble.h" />
     <ClInclude Include="Simulation.h" />
+    <ClInclude Include="visualObject.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gravsim.cpp" />

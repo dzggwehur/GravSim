@@ -6,8 +6,8 @@
 class Object
 {
 	public:
-		double mass=0.0f;
-		double radius=0.0f;
+		double mass=0.0;
+		double radius=0.0;
 		Model* model=nullptr;
 		std::deque<Vector3d> trail;
 		Vector3d AppliedImpulse{};
@@ -15,6 +15,13 @@ class Object
 		Vector3d accel2{};
 		Vector3d accel3{};
 		Vector3d accel4{};
+		Vector3d accel5{};
+		Vector3d accel6{};
+		Vector3d accel7{};
+		Vector3d accel8{};
+		Vector3d accel9{};
+		Vector3d accel10{};
+		Vector3d accel11{};
 		Vector3d position{};
 		Vector3d velocity{};
 		Vector3d position2{};
@@ -23,6 +30,19 @@ class Object
 		Vector3d velocity3{};
 		Vector3d position4{};
 		Vector3d velocity4{};
+		Vector3d position5{};
+		Vector3d velocity5{};
+		Vector3d position6{};
+		Vector3d velocity6{};
+		Vector3d position7{};
+		Vector3d velocity7{};
+		Vector3d position8{};
+		Vector3d velocity8{};
+		Vector3d position9{};
+		Vector3d velocity9{};
+		Vector3d position10{};
+		Vector3d velocity10{};
+		Vector3d position11{};
 		Color color=WHITE;
 		std::string name="";
 		bool destroyed=false;
