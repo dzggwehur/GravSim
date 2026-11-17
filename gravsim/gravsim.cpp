@@ -143,7 +143,7 @@ int main()
 	SetExitKey(KEY_F8);
 
 	sim.timestep = 1.0f;
-	sim.substeps = 1000;
+	sim.substeps = 100;
 	Objects::Load();
 	worldCamera.position = Vector3{ -0.0f,0.0f,0.0f };
 	worldCamera.target = Vector3{ 3.0f,0.0f,0.0f };

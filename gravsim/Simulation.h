@@ -16,25 +16,36 @@ class Simulation
 		float timestep = 1.0f;
 		int substeps = 0;
 		std::vector<Object> simulationObjects;
+		//__declspec(noinline)
 		Vector3d calcAccel(const Vector3d& pos, Vector3d Object::* stagePos, double mass) const
 		{
-			Vector3d totalAccel = { 0.0, 0.0, 0.0 };
-			double pullMass = mass * 1e-12;
-			for (size_t j = 0; j < simulationObjects.size(); ++j)
+			double ax = 0.0, ay = 0.0, az = 0.0;
+			const double pullMass = mass * 1e-12;
+			const int count = static_cast<int>(simulationObjects.size());
+
+			for (int j = 0; j < count; ++j)
 			{
 				const Object& obj2 = simulationObjects[j];
 				if (obj2.mass < pullMass) continue;
-				Vector3d diff = Vector3dSubtract(obj2.*stagePos, pos);
-				double distSq = diff.x * diff.x + diff.y * diff.y + diff.z * diff.z;
 
+				const Vector3d otherPos = obj2.*stagePos;
+				const double dx = otherPos.x - pos.x;
+				const double dy = otherPos.y - pos.y;
+				const double dz = otherPos.z - pos.z;
+
+				const double distSq = dx * dx + dy * dy + dz * dz;
 				if (distSq < 1e-12) continue;
-				double dist = std::sqrt(distSq);
-				double accelMag = (GRAVITATIONAL_CONSTANT * obj2.mass) / (distSq * dist);
-				if (accelMag < 1e-18) continue;
-				totalAccel = Vector3dAdd(totalAccel, Vector3dScale(diff, accelMag));
+
+				const double dist = std::sqrt(distSq);
+				const double accelMag = (GRAVITATIONAL_CONSTANT * obj2.mass) / (distSq * dist);
+
+				ax = std::fma(dx, accelMag, ax);
+				ay = std::fma(dy, accelMag, ay);
+				az = std::fma(dz, accelMag, az);
 			}
-			return totalAccel;
+			return { ax, ay, az };
 		}
+
 
 
 		void RK8Full(float step)

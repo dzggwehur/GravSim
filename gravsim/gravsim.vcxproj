@@ -187,6 +187,12 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <TreatWarningAsError>true</TreatWarningAsError>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions2</EnableEnhancedInstructionSet>
+      <StringPooling>true</StringPooling>
+      <StructMemberAlignment>8Bytes</StructMemberAlignment>
+      <FloatingPointModel>Fast</FloatingPointModel>
+      <FloatingPointExceptions>false</FloatingPointExceptions>
+      <ControlFlowGuard>false</ControlFlowGuard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -227,7 +233,6 @@
     </ClInclude>
     <ClInclude Include="raymathDouble.h" />
     <ClInclude Include="Simulation.h" />
-    <ClInclude Include="visualObject.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gravsim.cpp" />
