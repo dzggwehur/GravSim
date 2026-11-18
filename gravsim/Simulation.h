@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <vector>
 #include <functional>
+#include <math.h>
+#include <cmath>
 class Simulation
 {
 	public:
@@ -48,8 +50,9 @@ class Simulation
 
 
 
-		void RK8Full(float step)
+		bool RK78Full(double step, double tolerance, bool commit)
 		{
+			bool errorExceeded = false;
 			// --- STATE 1 ---
 			for (Object& obj : simulationObjects)
 			{
@@ -59,8 +62,8 @@ class Simulation
 			// --- STATE 2 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position2 = obj.position + obj.velocity * (step / 2.0);
-				obj.velocity2 = obj.velocity + obj.accel1 * (step / 2.0);
+				obj.position2 = obj.position + step * ((1.0 / 18.0) * obj.velocity);
+				obj.velocity2 = obj.velocity + step * ((1.0 / 18.0) * obj.accel1);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -70,8 +73,8 @@ class Simulation
 			// --- STATE 3 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position3 = obj.position + step * (0.25 * obj.velocity + 0.25 * obj.velocity2);
-				obj.velocity3 = obj.velocity + step * (0.25 * obj.accel1 + 0.25 * obj.accel2);
+				obj.position3 = obj.position + step * ((1.0 / 48.0) * obj.velocity + (1.0 / 16.0) * obj.velocity2);
+				obj.velocity3 = obj.velocity + step * ((1.0 / 48.0) * obj.accel1 + (1.0 / 16.0) * obj.accel2);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -81,8 +84,8 @@ class Simulation
 			// --- STATE 4 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position4 = obj.position + step * ((1.0 / 7.0) * obj.velocity + ((-7.0 - 3.0 * LOBATTO_SQRT21) / 98.0) * obj.velocity2 + ((21.0 + 5.0 * LOBATTO_SQRT21) / 49.0) * obj.velocity3);
-				obj.velocity4 = obj.velocity + step * ((1.0 / 7.0) * obj.accel1 + ((-7.0 - 3.0 * LOBATTO_SQRT21) / 98.0) * obj.accel2 + ((21.0 + 5.0 * LOBATTO_SQRT21) / 49.0) * obj.accel3);
+				obj.position4 = obj.position + step * ((1.0 / 32.0) * obj.velocity + (3.0 / 32.0) * obj.velocity3);
+				obj.velocity4 = obj.velocity + step * ((1.0 / 32.0) * obj.accel1 + (3.0 / 32.0) * obj.accel3);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -92,8 +95,8 @@ class Simulation
 			// --- STATE 5 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position5 = obj.position + step * (((11.0 + LOBATTO_SQRT21) / 84.0) * obj.velocity + ((18.0 + 4.0 * LOBATTO_SQRT21) / 63.0) * obj.velocity3 + ((21.0 - LOBATTO_SQRT21) / 252.0) * obj.velocity4);
-				obj.velocity5 = obj.velocity + step * (((11.0 + LOBATTO_SQRT21) / 84.0) * obj.accel1 + ((18.0 + 4.0 * LOBATTO_SQRT21) / 63.0) * obj.accel3 + ((21.0 - LOBATTO_SQRT21) / 252.0) * obj.accel4);
+				obj.position5 = obj.position + step * ((5.0 / 16.0) * obj.velocity - (75.0 / 64.0) * obj.velocity3 + (75.0 / 64.0) * obj.velocity4);
+				obj.velocity5 = obj.velocity + step * ((5.0 / 16.0) * obj.accel1 - (75.0 / 64.0) * obj.accel3 + (75.0 / 64.0) * obj.accel4);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -103,8 +106,8 @@ class Simulation
 			// --- STATE 6 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position6 = obj.position + step * (((5.0 + LOBATTO_SQRT21) / 48.0) * obj.velocity + ((9.0 + LOBATTO_SQRT21) / 36.0) * obj.velocity3 + ((-231.0 + 14.0 * LOBATTO_SQRT21) / 360.0) * obj.velocity4 + ((63.0 - 7.0 * LOBATTO_SQRT21) / 80.0) * obj.velocity5);
-				obj.velocity6 = obj.velocity + step * (((5.0 + LOBATTO_SQRT21) / 48.0) * obj.accel1 + ((9.0 + LOBATTO_SQRT21) / 36.0) * obj.accel3 + ((-231.0 + 14.0 * LOBATTO_SQRT21) / 360.0) * obj.accel4 + ((63.0 - 7.0 * LOBATTO_SQRT21) / 80.0) * obj.accel5);
+				obj.position6 = obj.position + step * ((3.0 / 80.0) * obj.velocity + (3.0 / 16.0) * obj.velocity4 + (3.0 / 20.0) * obj.velocity5);
+				obj.velocity6 = obj.velocity + step * ((3.0 / 80.0) * obj.accel1 + (3.0 / 16.0) * obj.accel4 + (3.0 / 20.0) * obj.accel5);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -114,8 +117,8 @@ class Simulation
 			// --- STATE 7 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position7 = obj.position + step * (((10.0 - LOBATTO_SQRT21) / 42.0) * obj.velocity + ((-432.0 + 92.0 * LOBATTO_SQRT21) / 315.0) * obj.velocity3 + ((633.0 - 145.0 * LOBATTO_SQRT21) / 90.0) * obj.velocity4 + ((-504.0 + 115.0 * LOBATTO_SQRT21) / 70.0) * obj.velocity5 + ((63.0 - 13.0 * LOBATTO_SQRT21) / 35.0) * obj.velocity6);
-				obj.velocity7 = obj.velocity + step * (((10.0 - LOBATTO_SQRT21) / 42.0) * obj.accel1 + ((-432.0 + 92.0 * LOBATTO_SQRT21) / 315.0) * obj.accel3 + ((633.0 - 145.0 * LOBATTO_SQRT21) / 90.0) * obj.accel4 + ((-504.0 + 115.0 * LOBATTO_SQRT21) / 70.0) * obj.accel5 + ((63.0 - 13.0 * LOBATTO_SQRT21) / 35.0) * obj.accel6);
+				obj.position7 = obj.position + step * ((29443841.0 / 614563906.0) * obj.velocity + (77736538.0 / 692538347.0) * obj.velocity4 - (28693883.0 / 1125000000.0) * obj.velocity5 + (23124283.0 / 1800000000.0) * obj.velocity6);
+				obj.velocity7 = obj.velocity + step * ((29443841.0 / 614563906.0) * obj.accel1 + (77736538.0 / 692538347.0) * obj.accel4 - (28693883.0 / 1125000000.0) * obj.accel5 + (23124283.0 / 1800000000.0) * obj.accel6);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -125,8 +128,8 @@ class Simulation
 			// --- STATE 8 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position8 = obj.position + step * ((1.0 / 14.0) * obj.velocity + ((14.0 - 3.0 * LOBATTO_SQRT21) / 126.0) * obj.velocity5 + ((13.0 - 3.0 * LOBATTO_SQRT21) / 63.0) * obj.velocity6 + (1.0 / 9.0) * obj.velocity7);
-				obj.velocity8 = obj.velocity + step * ((1.0 / 14.0) * obj.accel1 + ((14.0 - 3.0 * LOBATTO_SQRT21) / 126.0) * obj.accel5 + ((13.0 - 3.0 * LOBATTO_SQRT21) / 63.0) * obj.accel6 + (1.0 / 9.0) * obj.accel7);
+				obj.position8 = obj.position + step * ((16016141.0 / 946692911.0) * obj.velocity + (61564180.0 / 158732637.0) * obj.velocity4 + (22789713.0 / 633445777.0) * obj.velocity5 + (545815736.0 / 2771057229.0) * obj.velocity6 - (180193667.0 / 1043307555.0) * obj.velocity7);
+				obj.velocity8 = obj.velocity + step * ((16016141.0 / 946692911.0) * obj.accel1 + (61564180.0 / 158732637.0) * obj.accel4 + (22789713.0 / 633445777.0) * obj.accel5 + (545815736.0 / 2771057229.0) * obj.accel6 - (180193667.0 / 1043307555.0) * obj.accel7);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -136,8 +139,8 @@ class Simulation
 			// --- STATE 9 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position9 = obj.position + step * ((1.0 / 32.0) * obj.velocity + ((91.0 - 21.0 * LOBATTO_SQRT21) / 576.0) * obj.velocity5 + (11.0 / 72.0) * obj.velocity6 + ((-385.0 - 75.0 * LOBATTO_SQRT21) / 1152.0) * obj.velocity7 + ((63.0 + 13.0 * LOBATTO_SQRT21) / 128.0) * obj.velocity8);
-				obj.velocity9 = obj.velocity + step * ((1.0 / 32.0) * obj.accel1 + ((91.0 - 21.0 * LOBATTO_SQRT21) / 576.0) * obj.accel5 + (11.0 / 72.0) * obj.accel6 + ((-385.0 - 75.0 * LOBATTO_SQRT21) / 1152.0) * obj.accel7 + ((63.0 + 13.0 * LOBATTO_SQRT21) / 128.0) * obj.accel8);
+				obj.position9 = obj.position + step * ((39632708.0 / 573591083.0) * obj.velocity - (433636366.0 / 683701615.0) * obj.velocity4 - (421739975.0 / 2616292301.0) * obj.velocity5 + (100302831.0 / 723423059.0) * obj.velocity6 + (790204164.0 / 839813087.0) * obj.velocity7 + (800635310.0 / 3783071287.0) * obj.velocity8);
+				obj.velocity9 = obj.velocity + step * ((39632708.0 / 573591083.0) * obj.accel1 - (433636366.0 / 683701615.0) * obj.accel4 - (421739975.0 / 2616292301.0) * obj.accel5 + (100302831.0 / 723423059.0) * obj.accel6 + (790204164.0 / 839813087.0) * obj.accel7 + (800635310.0 / 3783071287.0) * obj.accel8);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -147,8 +150,8 @@ class Simulation
 			// --- STATE 10 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position10 = obj.position + step * ((1.0 / 14.0) * obj.velocity + (1.0 / 9.0) * obj.velocity5 + ((-733.0 - 147.0 * LOBATTO_SQRT21) / 2205.0) * obj.velocity6 + ((515.0 + 111.0 * LOBATTO_SQRT21) / 504.0) * obj.velocity7 + ((-51.0 - 11.0 * LOBATTO_SQRT21) / 56.0) * obj.velocity8 + ((132.0 + 28.0 * LOBATTO_SQRT21) / 245.0) * obj.velocity9);
-				obj.velocity10 = obj.velocity + step * ((1.0 / 14.0) * obj.accel1 + (1.0 / 9.0) * obj.accel5 + ((-733.0 - 147.0 * LOBATTO_SQRT21) / 2205.0) * obj.accel6 + ((515.0 + 111.0 * LOBATTO_SQRT21) / 504.0) * obj.accel7 + ((-51.0 - 11.0 * LOBATTO_SQRT21) / 56.0) * obj.accel8 + ((132.0 + 28.0 * LOBATTO_SQRT21) / 245.0) * obj.accel9);
+				obj.position10 = obj.position + step * ((246121993.0 / 1340847787.0) * obj.velocity - (37695042795.0 / 15268766246.0) * obj.velocity4 - (309121744.0 / 1061227803.0) * obj.velocity5 - (12992083.0 / 490766935.0) * obj.velocity6 + (6005943493.0 / 2108947869.0) * obj.velocity7 + (393006217.0 / 1396673457.0) * obj.velocity8 + (123872331.0 / 1001029789.0) * obj.velocity9);
+				obj.velocity10 = obj.velocity + step * ((246121993.0 / 1340847787.0) * obj.accel1 - (37695042795.0 / 15268766246.0) * obj.accel4 - (309121744.0 / 1061227803.0) * obj.accel5 - (12992083.0 / 490766935.0) * obj.accel6 + (6005943493.0 / 2108947869.0) * obj.accel7 + (393006217.0 / 1396673457.0) * obj.accel8 + (123872331.0 / 1001029789.0) * obj.accel9);
 			}
 			for (Object& obj : simulationObjects)
 			{
@@ -158,20 +161,105 @@ class Simulation
 			// --- STATE 11 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position11 = obj.position + step * (((-42.0 + 7.0 * LOBATTO_SQRT21) / 18.0) * obj.velocity5 + ((-18.0 + 28.0 * LOBATTO_SQRT21) / 45.0) * obj.velocity6 + ((-273.0 - 53.0 * LOBATTO_SQRT21) / 72.0) * obj.velocity7 + ((301.0 + 53.0 * LOBATTO_SQRT21) / 72.0) * obj.velocity8 + ((28.0 - 28.0 * LOBATTO_SQRT21) / 45.0) * obj.velocity9 + ((49.0 - 7.0 * LOBATTO_SQRT21) / 18.0) * obj.velocity10);
+				obj.position11 = obj.position + step * ((-1028468189.0 / 846180014.0) * obj.velocity + (8478235783.0 / 508512852.0) * obj.velocity4 + (1311729495.0 / 1432422823.0) * obj.velocity5 - (10304129995.0 / 1701304382.0) * obj.velocity6 - (48777925059.0 / 3047939560.0) * obj.velocity7 + (15336726248.0 / 1032824649.0) * obj.velocity8 - (45442868181.0 / 3398467696.0) * obj.velocity9 + (3065993473.0 / 597172653.0) * obj.velocity10);
+				obj.velocity11 = obj.velocity + step * ((-1028468189.0 / 846180014.0) * obj.accel1 + (8478235783.0 / 508512852.0) * obj.accel4 + (1311729495.0 / 1432422823.0) * obj.accel5 - (10304129995.0 / 1701304382.0) * obj.accel6 - (48777925059.0 / 3047939560.0) * obj.accel7 + (15336726248.0 / 1032824649.0) * obj.accel8 - (45442868181.0 / 3398467696.0) * obj.accel9 + (3065993473.0 / 597172653.0) * obj.accel10);
 			}
 			for (Object& obj : simulationObjects)
 			{
 				obj.accel11 = calcAccel(obj.position11, &Object::position11, obj.mass);
 			}
 
-			// --- FINAL UPDATE ---
+			// --- STATE 12 ---
 			for (Object& obj : simulationObjects)
 			{
-				obj.position += (step / 180.0) * (9.0 * obj.velocity + 49.0 * obj.velocity8 + 64.0 * obj.velocity9 + 49.0 * obj.velocity10 + 9.0 * obj.velocity + step * (((-42.0 + 7.0 * LOBATTO_SQRT21) / 18.0) * obj.accel5 + ((-18.0 + 28.0 * LOBATTO_SQRT21) / 45.0) * obj.accel6 + ((-273.0 - 53.0 * LOBATTO_SQRT21) / 72.0) * obj.accel7 + ((301.0 + 53.0 * LOBATTO_SQRT21) / 72.0) * obj.accel8 + ((28.0 - 28.0 * LOBATTO_SQRT21) / 45.0) * obj.accel9 + ((49.0 - 7.0 * LOBATTO_SQRT21) / 18.0) * obj.accel10));
-				obj.velocity += (step / 180.0) * (9.0 * obj.accel1 + 49.0 * obj.accel8 + 64.0 * obj.accel9 + 49.0 * obj.accel10 + 9.0 * obj.accel11);
+				obj.position12 = obj.position + step * ((185892177.0 / 718116043.0) * obj.velocity - (3185094517.0 / 667107341.0) * obj.velocity4 - (477755414.0 / 1098053517.0) * obj.velocity5 - (703635378.0 / 230739211.0) * obj.velocity6 + (5731566787.0 / 1027545527.0) * obj.velocity7 + (5232866602.0 / 850066563.0) * obj.velocity8 - (4093664535.0 / 808688257.0) * obj.velocity9 + (3962137247.0 / 1805957418.0) * obj.velocity10 + (65686358.0 / 487910083.0) * obj.velocity11);
+				obj.velocity12 = obj.velocity + step * ((185892177.0 / 718116043.0) * obj.accel1 - (3185094517.0 / 667107341.0) * obj.accel4 - (477755414.0 / 1098053517.0) * obj.accel5 - (703635378.0 / 230739211.0) * obj.accel6 + (5731566787.0 / 1027545527.0) * obj.accel7 + (5232866602.0 / 850066563.0) * obj.accel8 - (4093664535.0 / 808688257.0) * obj.accel9 + (3962137247.0 / 1805957418.0) * obj.accel10 + (65686358.0 / 487910083.0) * obj.accel11);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel12 = calcAccel(obj.position12, &Object::position12, obj.mass);
 			}
 
+			// --- STATE 13 ---
+			for (Object& obj : simulationObjects)
+			{
+				obj.position13 = obj.position + step * ((403863854.0 / 491063109.0) * obj.velocity - (5068492393.0 / 434740067.0) * obj.velocity4 - (411421997.0 / 543043805.0) * obj.velocity5 + (652783627.0 / 914296604.0) * obj.velocity6 + (11173962825.0 / 925320556.0) * obj.velocity7 - (13158990841.0 / 6184727034.0) * obj.velocity8 + (3936647629.0 / 1978049680.0) * obj.velocity9 - (160528059.0 / 685178525.0) * obj.velocity10 + (248638103.0 / 1413531060.0) * obj.velocity11);
+				obj.velocity13 = obj.velocity + step * ((403863854.0 / 491063109.0) * obj.accel1 - (5068492393.0 / 434740067.0) * obj.accel4 - (411421997.0 / 543043805.0) * obj.accel5 + (652783627.0 / 914296604.0) * obj.accel6 + (11173962825.0 / 925320556.0) * obj.accel7 - (13158990841.0 / 6184727034.0) * obj.accel8 + (3936647629.0 / 1978049680.0) * obj.accel9 - (160528059.0 / 685178525.0) * obj.accel10 + (248638103.0 / 1413531060.0) * obj.accel11);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel13 = calcAccel(obj.position13, &Object::position13, obj.mass);
+			}
+
+			// --- FINAL UPDATE & 7TH/8TH ORDER ERROR ESTIMATION ---
+			double maxErrorRatio = 0.0;
+
+			for (Object& obj : simulationObjects)
+			{
+				// 8th-order solution
+				obj.pos8 = obj.position + step * (
+					(14005451.0 / 335480064.0) * obj.velocity -
+					(59238493.0 / 1068277825.0) * obj.velocity6 +
+					(181606767.0 / 758867731.0) * obj.velocity7 +
+					(561292985.0 / 797845732.0) * obj.velocity8 -
+					(1041891430.0 / 1371343529.0) * obj.velocity9 +
+					(760417239.0 / 1151165299.0) * obj.velocity10 +
+					(118820643.0 / 751138087.0) * obj.velocity11 -
+					(528747749.0 / 2220607170.0) * obj.velocity12 +
+					(1.0 / 4.0) * obj.velocity13
+					);
+				obj.vel8 = obj.velocity + step * (
+					(14005451.0 / 335480064.0) * obj.accel1 -
+					(59238493.0 / 1068277825.0) * obj.accel6 +
+					(181606767.0 / 758867731.0) * obj.accel7 +
+					(561292985.0 / 797845732.0) * obj.accel8 -
+					(1041891430.0 / 1371343529.0) * obj.accel9 +
+					(760417239.0 / 1151165299.0) * obj.accel10 +
+					(118820643.0 / 751138087.0) * obj.accel11 -
+					(528747749.0 / 2220607170.0) * obj.accel12 +
+					(1.0 / 4.0) * obj.accel13
+					);
+
+				if (commit)
+				{
+					obj.position = obj.pos8;
+					obj.velocity = obj.vel8;
+				}
+				else
+				{
+					// 7th-order embedded solution (only needed on dry-run error checks!)
+					obj.pos7 = obj.position + step * (
+						(13451932.0 / 455176623.0) * obj.velocity -
+						(808719846.0 / 976000145.0) * obj.velocity6 +
+						(1757004468.0 / 5645159321.0) * obj.velocity7 +
+						(656045339.0 / 265891186.0) * obj.velocity8 -
+						(3867574721.0 / 1518517206.0) * obj.velocity9 +
+						(465885868.0 / 322736535.0) * obj.velocity10 +
+						(53011238.0 / 667516719.0) * obj.velocity11 +
+						(2.0 / 45.0) * obj.velocity12
+						);
+					obj.vel7 = obj.velocity + step * (
+						(13451932.0 / 455176623.0) * obj.accel1 -
+						(808719846.0 / 976000145.0) * obj.accel6 +
+						(1757004468.0 / 5645159321.0) * obj.accel7 +
+						(656045339.0 / 265891186.0) * obj.accel8 -
+						(3867574721.0 / 1518517206.0) * obj.accel9 +
+						(465885868.0 / 322736535.0) * obj.accel10 +
+						(53011238.0 / 667516719.0) * obj.accel11 +
+						(2.0 / 45.0) * obj.accel12
+						);
+					const Vector3d pDiff = obj.pos8 - obj.pos7;
+					const Vector3d vDiff = obj.vel8 - obj.vel7;
+					const double posErr = std::sqrt(pDiff.x * pDiff.x + pDiff.y * pDiff.y + pDiff.z * pDiff.z);
+					const double velErr = std::sqrt(vDiff.x * vDiff.x + vDiff.y * vDiff.y + vDiff.z * vDiff.z);
+					const double posScale = std::max(1.0, std::sqrt(obj.pos8.x * obj.pos8.x + obj.pos8.y * obj.pos8.y + obj.pos8.z * obj.pos8.z));
+					const double velScale = std::max(1.0, std::sqrt(obj.vel8.x * obj.vel8.x + obj.vel8.y * obj.vel8.y + obj.vel8.z * obj.vel8.z));
+					const double ratio = std::max(posErr / posScale, velErr / velScale) / tolerance;
+					if (ratio > maxErrorRatio) maxErrorRatio = ratio;
+				}
+			}
+			if (maxErrorRatio > 1.0) errorExceeded = true; 
+			return errorExceeded;
 		}
 		void Collision(int& track)
 		{
@@ -184,7 +272,6 @@ class Simulation
 					if (&obj2 == &obj || obj2.destroyed) continue;
 					if (dist < obj.radius + obj2.radius)
 					{
-						std::cout << "Collision!";
 						if (obj.mass > obj2.mass)
 						{
 							if (track == index2)
@@ -216,33 +303,33 @@ class Simulation
 		}
 		void Update(int& objectToTrack)
 		{
-			double slowDownThreshold = 15000000.0;
-			double lowestDistance = 218323239.0 * 2313223231.0;
-			for (Object& obj : simulationObjects)
+			substeps = 1;
+			int maxSubsteps = 1000000/(simulationObjects.size()* simulationObjects.size());
+			bool errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
+			if (errorExceeded)
 			{
-				for (const Object& obj2 : simulationObjects)
+				while (errorExceeded && substeps < maxSubsteps)
 				{
-					double dist = Vector3dDistance(obj.position, obj2.position);
-					if (dist < lowestDistance)
-					{
-						if (dist < 0.000001f) continue;
-						lowestDistance = dist;
-					}
+					substeps *= 2;
+					errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
+				}
+				if (errorExceeded && substeps >= maxSubsteps)
+				{
+					timestep /= 2;
+					errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
 				}
 			}
-			double ratio = std::clamp(lowestDistance / slowDownThreshold, 0.0, 1.0);
-
-			float timestep2 = std::clamp((float)(1 * ratio), 0.00001f, 1.0f);
-			double time = (timestep / substeps)*timestep2;
+			std::cout << substeps << "\n";
+			double time = (timestep / substeps);
 			for (int i = 0; i < substeps; i++)
 			{
-				RK8Full(time);
+				RK78Full(time,1e-12,true);
 				Collision(objectToTrack);
 			}
 			for (Object& item : simulationObjects)
 			{
 				item.trail.push_back(item.position);
-				if (item.trail.size() > 1000) item.trail.pop_front();
+				if (item.trail.size() > 3000) item.trail.pop_front();
 			}
 		}
 		void AddObject(float mass, Vector3d position, Vector3d initialVelocity, float radius, Color color,Model* model,std::string name)
@@ -262,13 +349,13 @@ class Simulation
 		{
 			for (const Object& obj : simulationObjects)
 			{
-				DrawModel(*obj.model, static_cast<Vector3>(obj.position - realPosition), (float)obj.radius, obj.color);
+				DrawModel(*obj.model, static_cast<Vector3>(obj.position - realPosition), (float)obj.radius, WHITE);
 				//trails
 				if (obj.trail.size() >= 2) {
 					Vector3 prev = ConvertRegular(obj.trail[0] - realPosition);
 					for (size_t i = 1; i < obj.trail.size(); ++i) {
 						Vector3 curr = ConvertRegular(obj.trail[i] - realPosition);
-						DrawLine3D(prev, curr, Color{ 255, 0, 0, 255 });
+						DrawLine3D(prev, curr, obj.color);
 						prev = curr;
 					}
 				}

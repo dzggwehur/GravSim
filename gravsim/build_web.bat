@@ -22,7 +22,7 @@ for %%a in ("%~dp0*.m3d") do (
     set "ASSET_FILES=!ASSET_FILES! --embed-file "%%~fa@/%%~nxa""
 )
 
-"C:\emsdk\upstream\emscripten\em++.exe" -std=c++23 -stdlib=libc++ -O3 !SRC_FILES! -o "%~dp0build-web\index.html" ^
+"C:\emsdk\upstream\emscripten\em++.exe" -std=c++23 -stdlib=libc++ -O3 -flto -msimd128 -fno-math-errno !SRC_FILES! -o "%~dp0build-web\index.html" ^
   -I"C:\raylib\src" ^
   -I"%~dp0include" ^
   "C:\raylib\build-web\raylib\libraylib.a" ^
