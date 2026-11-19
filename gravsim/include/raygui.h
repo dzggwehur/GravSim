@@ -849,7 +849,7 @@ RAYGUIAPI int GuiComboBox(Rectangle bounds, const char *text, int *active);     
 RAYGUIAPI int GuiDropdownBox(Rectangle bounds, const char *text, int *active, bool editMode);          // Dropdown Box control
 RAYGUIAPI int GuiSpinner(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Spinner control
 RAYGUIAPI int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, int maxValue, bool editMode); // Value Box control, updates input text with numbers
-RAYGUIAPI int GuiValueBoxFloat(Rectangle bounds, const char *text, char *textValue, float *value, bool editMode); // Value box control for float values
+
 RAYGUIAPI int GuiTextBox(Rectangle bounds, char *text, int textSize, bool editMode);                   // Text Box control, updates input text
 
 RAYGUIAPI int GuiSlider(Rectangle bounds, const char *textLeft, const char *textRight, float *value, float minValue, float maxValue); // Slider control
@@ -1145,6 +1145,8 @@ typedef enum {
 
 #if defined(__cplusplus)
 }            // Prevents name mangling of functions
+template <typename T>
+RAYGUIAPI int GuiValueBoxFloat(Rectangle bounds, const char* text, char* textValue, T* value, bool editMode);
 #endif
 
 #endif // RAYGUI_H
@@ -3283,7 +3285,8 @@ int GuiValueBox(Rectangle bounds, const char *text, int *value, int minValue, in
 }
 
 // Floating point Value Box control, updates input val_str with numbers
-int GuiValueBoxFloat(Rectangle bounds, const char *text, char *textValue, float *value, bool editMode)
+template <typename T>
+int GuiValueBoxFloat(Rectangle bounds, const char *text, char *textValue, T *value, bool editMode)
 {
     #if !defined(RAYGUI_VALUEBOX_MAX_CHARS)
         #define RAYGUI_VALUEBOX_MAX_CHARS  32

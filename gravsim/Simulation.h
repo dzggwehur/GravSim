@@ -15,9 +15,13 @@
 class Simulation
 {
 	public:
-		float timestep = 1.0f;
+		double timestep = 1.0;
+		double intendedTimestep = 1.0;
 		int substeps = 0;
+		double substepSize = 1.0;
+
 		std::vector<Object> simulationObjects;
+
 		//__declspec(noinline)
 		Vector3d calcAccel(const Vector3d& pos, Vector3d Object::* stagePos, double mass) const
 		{
@@ -47,12 +51,75 @@ class Simulation
 			}
 			return { ax, ay, az };
 		}
-
-
-
-		bool RK78Full(double step, double tolerance, bool commit)
+		void RK2Full(double step)
 		{
-			bool errorExceeded = false;
+			// --- STAGE 1 (Start of step) ---
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel1 = calcAccel(obj.position, &Object::position, obj.mass);
+			}
+
+			// --- STAGE 2 (Half-step midpoint) ---
+			for (Object& obj : simulationObjects)
+			{
+				obj.position2 = obj.position + obj.velocity * (step * 0.5);
+				obj.velocity2 = obj.velocity + obj.accel1 * (step * 0.5);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel2 = calcAccel(obj.position2, &Object::position2, obj.mass);
+			}
+
+			// --- FINAL UPDATE ---
+			for (Object& obj : simulationObjects)
+			{
+				obj.position += step * obj.velocity2;
+				obj.velocity += step * obj.accel2;
+			}
+		}
+		void RK4Full(double step)
+		{
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel1 = calcAccel(obj.position, &Object::position, obj.mass);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.position2 = obj.position + obj.velocity * (step / 2);
+				obj.velocity2 = obj.velocity + obj.accel1 * (step / 2);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel2 = calcAccel(obj.position2, &Object::position2, obj.mass);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.position3 = obj.position + obj.velocity2 * (step / 2);
+				obj.velocity3 = obj.velocity + obj.accel2 * (step / 2);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel3 = calcAccel(obj.position3, &Object::position3, obj.mass);
+			}
+
+			for (Object& obj : simulationObjects)
+			{
+				obj.position4 = obj.position + obj.velocity3 * step;
+				obj.velocity4 = obj.velocity + obj.accel3 * step;
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.accel4 = calcAccel(obj.position4, &Object::position4, obj.mass);
+			}
+			for (Object& obj : simulationObjects)
+			{
+				obj.position += (step / 6) * (obj.velocity + 2 * obj.velocity2 + 2 * obj.velocity3 + obj.velocity4);
+				obj.velocity += (step / 6) * (obj.accel1 + 2 * obj.accel2 + 2 * obj.accel3 + obj.accel4);
+
+			}
+		}
+		double RK78Full(double step, double tolerance)
+		{
 			// --- STATE 1 ---
 			for (Object& obj : simulationObjects)
 			{
@@ -192,6 +259,7 @@ class Simulation
 			}
 
 			// --- FINAL UPDATE & 7TH/8TH ORDER ERROR ESTIMATION ---
+	// --- FINAL UPDATE & 7TH/8TH ORDER ERROR ESTIMATION ---
 			double maxErrorRatio = 0.0;
 
 			for (Object& obj : simulationObjects)
@@ -220,47 +288,51 @@ class Simulation
 					(1.0 / 4.0) * obj.accel13
 					);
 
-				if (commit)
+				// 7th-order embedded solution
+				obj.pos7 = obj.position + step * (
+					(13451932.0 / 455176623.0) * obj.velocity -
+					(808719846.0 / 976000145.0) * obj.velocity6 +
+					(1757004468.0 / 5645159321.0) * obj.velocity7 +
+					(656045339.0 / 265891186.0) * obj.velocity8 -
+					(3867574721.0 / 1518517206.0) * obj.velocity9 +
+					(465885868.0 / 322736535.0) * obj.velocity10 +
+					(53011238.0 / 667516719.0) * obj.velocity11 +
+					(2.0 / 45.0) * obj.velocity12
+					);
+				obj.vel7 = obj.velocity + step * (
+					(13451932.0 / 455176623.0) * obj.accel1 -
+					(808719846.0 / 976000145.0) * obj.accel6 +
+					(1757004468.0 / 5645159321.0) * obj.accel7 +
+					(656045339.0 / 265891186.0) * obj.accel8 -
+					(3867574721.0 / 1518517206.0) * obj.accel9 +
+					(465885868.0 / 322736535.0) * obj.accel10 +
+					(53011238.0 / 667516719.0) * obj.accel11 +
+					(2.0 / 45.0) * obj.accel12
+					);
+
+				const Vector3d pDiff = obj.pos8 - obj.pos7;
+				const Vector3d vDiff = obj.vel8 - obj.vel7;
+				const double posErr = std::sqrt(pDiff.x * pDiff.x + pDiff.y * pDiff.y + pDiff.z * pDiff.z);
+				const double velErr = std::sqrt(vDiff.x * vDiff.x + vDiff.y * vDiff.y + vDiff.z * vDiff.z);
+				const double posScale = std::max(1.0, std::sqrt(obj.pos8.x * obj.pos8.x + obj.pos8.y * obj.pos8.y + obj.pos8.z * obj.pos8.z));
+				const double velScale = std::max(1.0, std::sqrt(obj.vel8.x * obj.vel8.x + obj.vel8.y * obj.vel8.y + obj.vel8.z * obj.vel8.z));
+				const double ratio = std::max(posErr / posScale, velErr / velScale) / tolerance;
+				if (ratio > maxErrorRatio) maxErrorRatio = ratio;
+			}
+
+			// Commit all objects together only if the entire system passed the tolerance check
+			if (maxErrorRatio <= 1.0)
+			{
+				for (Object& obj : simulationObjects)
 				{
 					obj.position = obj.pos8;
 					obj.velocity = obj.vel8;
 				}
-				else
-				{
-					// 7th-order embedded solution (only needed on dry-run error checks!)
-					obj.pos7 = obj.position + step * (
-						(13451932.0 / 455176623.0) * obj.velocity -
-						(808719846.0 / 976000145.0) * obj.velocity6 +
-						(1757004468.0 / 5645159321.0) * obj.velocity7 +
-						(656045339.0 / 265891186.0) * obj.velocity8 -
-						(3867574721.0 / 1518517206.0) * obj.velocity9 +
-						(465885868.0 / 322736535.0) * obj.velocity10 +
-						(53011238.0 / 667516719.0) * obj.velocity11 +
-						(2.0 / 45.0) * obj.velocity12
-						);
-					obj.vel7 = obj.velocity + step * (
-						(13451932.0 / 455176623.0) * obj.accel1 -
-						(808719846.0 / 976000145.0) * obj.accel6 +
-						(1757004468.0 / 5645159321.0) * obj.accel7 +
-						(656045339.0 / 265891186.0) * obj.accel8 -
-						(3867574721.0 / 1518517206.0) * obj.accel9 +
-						(465885868.0 / 322736535.0) * obj.accel10 +
-						(53011238.0 / 667516719.0) * obj.accel11 +
-						(2.0 / 45.0) * obj.accel12
-						);
-					const Vector3d pDiff = obj.pos8 - obj.pos7;
-					const Vector3d vDiff = obj.vel8 - obj.vel7;
-					const double posErr = std::sqrt(pDiff.x * pDiff.x + pDiff.y * pDiff.y + pDiff.z * pDiff.z);
-					const double velErr = std::sqrt(vDiff.x * vDiff.x + vDiff.y * vDiff.y + vDiff.z * vDiff.z);
-					const double posScale = std::max(1.0, std::sqrt(obj.pos8.x * obj.pos8.x + obj.pos8.y * obj.pos8.y + obj.pos8.z * obj.pos8.z));
-					const double velScale = std::max(1.0, std::sqrt(obj.vel8.x * obj.vel8.x + obj.vel8.y * obj.vel8.y + obj.vel8.z * obj.vel8.z));
-					const double ratio = std::max(posErr / posScale, velErr / velScale) / tolerance;
-					if (ratio > maxErrorRatio) maxErrorRatio = ratio;
-				}
 			}
-			if (maxErrorRatio > 1.0) errorExceeded = true; 
-			return errorExceeded;
-		}
+
+			return maxErrorRatio;
+}
+
 		void Collision(int& track)
 		{
 			//Check collision
@@ -301,31 +373,39 @@ class Simulation
 			}
 			std::erase_if(simulationObjects, [](const Object& obj) { return obj.destroyed; });
 		}
-		void Update(int& objectToTrack)
+		void Update(int& objectToTrack,double& globalTime)
 		{
-			substeps = 1;
-			int maxSubsteps = 1000000/(simulationObjects.size()* simulationObjects.size());
-			bool errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
-			if (errorExceeded)
-			{
-				while (errorExceeded && substeps < maxSubsteps)
-				{
-					substeps *= 2;
-					errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
-				}
-				if (errorExceeded && substeps >= maxSubsteps)
-				{
-					timestep /= 2;
-					errorExceeded = RK78Full(timestep / substeps, 1e-12, false);
-				}
-			}
-			std::cout << substeps << "\n";
+			timestep = intendedTimestep;
+			int maxSubsteps = 1000000 / (simulationObjects.size() * simulationObjects.size());
 			double time = (timestep / substeps);
+			double worstRatio = 0.0;
 			for (int i = 0; i < substeps; i++)
 			{
-				RK78Full(time,1e-12,true);
+				double ratio = RK78Full(time, 1e-12);
+				if (!(ratio <= 1.0))
+				{
+					double scale = std::isfinite(ratio) ? std::clamp(std::pow(ratio, 0.125) / 0.9, 1.5, 10.0) : 4.0;
+					if (substeps < maxSubsteps)
+					{
+						substeps = std::min(maxSubsteps, (int)std::ceil(substeps * scale));
+					}
+					else
+					{
+						timestep /= scale;
+					}
+					time = timestep / substeps;
+					ratio = RK78Full(time, 1e-12);
+				}
+				if (std::isfinite(ratio)) worstRatio = std::max(worstRatio, ratio);
+				globalTime += time;
 				Collision(objectToTrack);
 			}
+			if (worstRatio > 0.0 && worstRatio < 0.5 && substeps > 1)
+			{
+				double scale = std::clamp(std::pow(worstRatio, 0.125) / 0.9, 0.5, 1.0);
+				substeps = std::max(1, (int)std::floor(substeps * scale));
+			}
+
 			for (Object& item : simulationObjects)
 			{
 				item.trail.push_back(item.position);

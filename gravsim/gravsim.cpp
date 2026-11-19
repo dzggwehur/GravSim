@@ -38,8 +38,7 @@ void UpdateGame()
 {
 	if (!paused)
 	{
-		sim.Update(objectToTrack);
-		simTime += sim.timestep;
+		sim.Update(objectToTrack, simTime);
 	}
 	if (IsKeyPressed(KEY_ESCAPE))
 	{
@@ -102,9 +101,11 @@ void UpdateGame()
 	EndMode3D();
 	sim.Draw2D(realCameraPosition, worldCamera);
 	DrawText(std::string("Simulation Time: " + std::to_string(simTime) + " seconds").c_str(), 10, 10, 25, WHITE);
+	DrawText(std::string("Simulation Timestep: " + std::to_string(sim.timestep) + " seconds per frame").c_str(), 10, 40, 25, WHITE);
+	DrawText(std::string("Simulation Substeps: " + std::to_string(sim.substeps) + " substeps per frame").c_str(), 10, 70, 25, WHITE);
 	if (objectToTrack != -1)
 	{
-		DrawText(std::string("Currently viewing object: " + sim.simulationObjects[objectToTrack].name).c_str(), 10, 70, 25, WHITE);
+		DrawText(std::string("Currently viewing object: " + sim.simulationObjects[objectToTrack].name).c_str(), 10, 100, 25, WHITE);
 	}
 	if (GuiButton(Rectangle{ 24, 80, 120, 30 }, "+ Add Object"))
 	{
@@ -117,7 +118,7 @@ void UpdateGame()
 			sim.simulationObjects.erase(sim.simulationObjects.begin() + objectToTrack);
 		}
 	}
-	if (GuiValueBoxFloat(Rectangle(10, 370, 120, 30), "Global Timestep (s/t)", floatText[3], &sim.timestep, highlight[4])) highlight[4] = !highlight[4];
+	if (GuiValueBoxFloat(Rectangle(10, 370, 120, 30), "Global Timestep (s/t)", floatText[3], &sim.intendedTimestep, highlight[4])) highlight[4] = !highlight[4];
 	if (enableCreateGUI)
 	{
 		DrawRectangle(300, 300, 500, 500, WHITE);
