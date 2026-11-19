@@ -19,6 +19,7 @@ class Simulation
 		double intendedTimestep = 1.0;
 		int substeps = 0;
 		double substepSize = 1.0;
+		double tolerance = 1e-12;
 
 		std::vector<Object> simulationObjects;
 
@@ -381,7 +382,7 @@ class Simulation
 			double worstRatio = 0.0;
 			for (int i = 0; i < substeps; i++)
 			{
-				double ratio = RK78Full(time, 1e-12);
+				double ratio = RK78Full(time, tolerance);
 				if (!(ratio <= 1.0))
 				{
 					double scale = std::isfinite(ratio) ? std::clamp(std::pow(ratio, 0.125) / 0.9, 1.5, 10.0) : 4.0;
@@ -394,7 +395,7 @@ class Simulation
 						timestep /= scale;
 					}
 					time = timestep / substeps;
-					ratio = RK78Full(time, 1e-12);
+					ratio = RK78Full(time, tolerance);
 				}
 				if (std::isfinite(ratio)) worstRatio = std::max(worstRatio, ratio);
 				globalTime += time;
