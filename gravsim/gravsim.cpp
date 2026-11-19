@@ -38,7 +38,7 @@ void UpdateGame()
 {
 	if (!paused)
 	{
-		sim.Update(objectToTrack, simTime);
+		sim.Update(objectToTrack, simTime,RK78);
 	}
 	if (IsKeyPressed(KEY_ESCAPE))
 	{

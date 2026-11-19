@@ -52,73 +52,56 @@ class Simulation
 			}
 			return { ax, ay, az };
 		}
-		void RK2Full(double step)
+		void Yoshida8Full(double step)
 		{
-			// --- STAGE 1 (Start of step) ---
+			// Symmetric 15-stage weights (w[0..6], w[7], w[6..0])
+			static constexpr double w[15] = {
+				 0.74167036435061295344822780,  // w1
+				-0.40910082580003159399730010,  // w2
+				 0.19075471029623837995387626,  // w3
+				-0.57386247111608226665638773,  // w4
+				 0.29906418130365592384446354,  // w5
+				 0.33462491824529818378495798,  // w6
+				 0.31529309239676659663205666,  // w7
+				-0.79688793935291635401978884,  // w0 (center)
+				 0.31529309239676659663205666,  // w7
+				 0.33462491824529818378495798,  // w6
+				 0.29906418130365592384446354,  // w5
+				-0.57386247111608226665638773,  // w4
+				 0.19075471029623837995387626,  // w3
+				-0.40910082580003159399730010,  // w2
+				 0.74167036435061295344822780   // w1
+			};
+
+			// First half-drift (c1 = 0.5 * w[0])
 			for (Object& obj : simulationObjects)
 			{
-				obj.accel1 = calcAccel(obj.position, &Object::position, obj.mass);
+				obj.position += (0.5 * w[0] * step) * obj.velocity;
 			}
 
-			// --- STAGE 2 (Half-step midpoint) ---
-			for (Object& obj : simulationObjects)
+			for (int s = 0; s < 15; s++)
 			{
-				obj.position2 = obj.position + obj.velocity * (step * 0.5);
-				obj.velocity2 = obj.velocity + obj.accel1 * (step * 0.5);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.accel2 = calcAccel(obj.position2, &Object::position2, obj.mass);
-			}
+				// 1. Evaluate acceleration at current position
+				for (Object& obj : simulationObjects)
+				{
+					obj.accel1 = calcAccel(obj.position, &Object::position, obj.mass);
+				}
 
-			// --- FINAL UPDATE ---
-			for (Object& obj : simulationObjects)
-			{
-				obj.position += step * obj.velocity2;
-				obj.velocity += step * obj.accel2;
+				// 2. Full velocity kick (d_s = w[s])
+				for (Object& obj : simulationObjects)
+				{
+					obj.velocity += (w[s] * step) * obj.accel1;
+				}
+
+				// 3. Position drift to next stage (combining adjacent half-drifts: 0.5*(w[s] + w[s+1]))
+				const double driftWeight = (s < 14) ? 0.5 * (w[s] + w[s + 1]) : 0.5 * w[14];
+				for (Object& obj : simulationObjects)
+				{
+					obj.position += (driftWeight * step) * obj.velocity;
+				}
 			}
 		}
-		void RK4Full(double step)
-		{
-			for (Object& obj : simulationObjects)
-			{
-				obj.accel1 = calcAccel(obj.position, &Object::position, obj.mass);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.position2 = obj.position + obj.velocity * (step / 2);
-				obj.velocity2 = obj.velocity + obj.accel1 * (step / 2);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.accel2 = calcAccel(obj.position2, &Object::position2, obj.mass);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.position3 = obj.position + obj.velocity2 * (step / 2);
-				obj.velocity3 = obj.velocity + obj.accel2 * (step / 2);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.accel3 = calcAccel(obj.position3, &Object::position3, obj.mass);
-			}
 
-			for (Object& obj : simulationObjects)
-			{
-				obj.position4 = obj.position + obj.velocity3 * step;
-				obj.velocity4 = obj.velocity + obj.accel3 * step;
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.accel4 = calcAccel(obj.position4, &Object::position4, obj.mass);
-			}
-			for (Object& obj : simulationObjects)
-			{
-				obj.position += (step / 6) * (obj.velocity + 2 * obj.velocity2 + 2 * obj.velocity3 + obj.velocity4);
-				obj.velocity += (step / 6) * (obj.accel1 + 2 * obj.accel2 + 2 * obj.accel3 + obj.accel4);
-
-			}
-		}
 		double RK78Full(double step, double tolerance)
 		{
 			// --- STATE 1 ---
@@ -333,7 +316,39 @@ class Simulation
 
 			return maxErrorRatio;
 }
-
+		void FullAdaptiveRK78(int& objectToTrack, double& globalTime)
+		{
+			timestep = intendedTimestep;
+			int maxSubsteps = 1000000 / (simulationObjects.size() * simulationObjects.size());
+			double time = (timestep / substeps);
+			double worstRatio = 0.0;
+			for (int i = 0; i < substeps; i++)
+			{
+				double ratio = RK78Full(time, tolerance);
+				if (!(ratio <= 1.0))
+				{
+					double scale = std::isfinite(ratio) ? std::clamp(std::pow(ratio, 0.125) / 0.9, 1.5, 10.0) : 4.0;
+					if (substeps < maxSubsteps)
+					{
+						substeps = std::min(maxSubsteps, (int)std::ceil(substeps * scale));
+					}
+					else
+					{
+						timestep /= scale;
+					}
+					time = timestep / substeps;
+					ratio = RK78Full(time, tolerance);
+				}
+				if (std::isfinite(ratio)) worstRatio = std::max(worstRatio, ratio);
+				globalTime += time;
+				Collision(objectToTrack);
+			}
+			if (worstRatio > 0.0 && worstRatio < 0.5 && substeps > 1)
+			{
+				double scale = std::clamp(std::pow(worstRatio, 0.125) / 0.9, 0.5, 1.0);
+				substeps = std::max(1, (int)std::floor(substeps * scale));
+			}
+		}
 		void Collision(int& track)
 		{
 			//Check collision
@@ -374,39 +389,26 @@ class Simulation
 			}
 			std::erase_if(simulationObjects, [](const Object& obj) { return obj.destroyed; });
 		}
-		void Update(int& objectToTrack,double& globalTime)
-		{
-			timestep = intendedTimestep;
-			int maxSubsteps = 1000000 / (simulationObjects.size() * simulationObjects.size());
-			double time = (timestep / substeps);
-			double worstRatio = 0.0;
-			for (int i = 0; i < substeps; i++)
-			{
-				double ratio = RK78Full(time, tolerance);
-				if (!(ratio <= 1.0))
-				{
-					double scale = std::isfinite(ratio) ? std::clamp(std::pow(ratio, 0.125) / 0.9, 1.5, 10.0) : 4.0;
-					if (substeps < maxSubsteps)
-					{
-						substeps = std::min(maxSubsteps, (int)std::ceil(substeps * scale));
-					}
-					else
-					{
-						timestep /= scale;
-					}
-					time = timestep / substeps;
-					ratio = RK78Full(time, tolerance);
-				}
-				if (std::isfinite(ratio)) worstRatio = std::max(worstRatio, ratio);
-				globalTime += time;
-				Collision(objectToTrack);
-			}
-			if (worstRatio > 0.0 && worstRatio < 0.5 && substeps > 1)
-			{
-				double scale = std::clamp(std::pow(worstRatio, 0.125) / 0.9, 0.5, 1.0);
-				substeps = std::max(1, (int)std::floor(substeps * scale));
-			}
 
+
+		void Update(int& objectToTrack,double& globalTime,int integrator)
+		{
+			switch (integrator)
+			{
+				case RK78:
+				{
+					FullAdaptiveRK78(objectToTrack, globalTime);
+					break;
+				}
+				case Yoshida8:
+				{
+					timestep = intendedTimestep;
+					Yoshida8Full(timestep);
+					globalTime += timestep;
+					Collision(objectToTrack);
+					break;
+				}
+			}
 			for (Object& item : simulationObjects)
 			{
 				item.trail.push_back(item.position);
