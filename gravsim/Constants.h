@@ -9,6 +9,25 @@ enum Integrators
 	RK43 = 3,
 	RK21 = 4,
 };
+//Convert int to integrator name string
+constexpr const char* IntegratorName(int integrator)
+{
+	switch (integrator)
+	{
+	case IAS15:
+		return "IAS15";
+	case Yoshida8:
+		return "Yoshida8";
+	case DOP853:
+		return "DOP853";
+	case RK43:
+		return "RK43";
+	case RK21:
+		return "RK21";
+	default:
+		return "Unknown Integrator";
+	}
+}
 enum Anomalies
 {
 	MeanAnomaly = 0,
