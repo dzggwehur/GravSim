@@ -11,12 +11,14 @@ ADVANCED 2: Develop a guardrail on an online system or in the future which can h
 #include <rlgl.h>
 #include <string>
 #include <array>
+#define _WINDOWS_
+#define WIN32_LEAN_AND_MEAN
+#include <rapidcsv.h>
 #if defined(PLATFORM_WEB)
 #include <emscripten/emscripten.h>
 #endif
 #define RAYGUI_IMPLEMENTATION
 #include <raygui.h>
-
 
 Vector3d realCameraPosition{};
 Camera worldCamera{};
@@ -33,12 +35,17 @@ float createRadius = 0;
 std::array<char[1223], 5> floatText{};
 float initialOrbitCameraDist = 0;
 bool placeMode = false;
+constexpr double AU_TO_M = 149597870700.0;
 Simulation sim;
+#include <cmath>
+#include <fstream>
+
+
 void UpdateGame()
 {
 	if (!paused)
 	{
-		sim.Update(objectToTrack, simTime,RK78);
+		sim.Update(objectToTrack, simTime, RK78);
 	}
 	if (IsKeyPressed(KEY_ESCAPE))
 	{
@@ -94,7 +101,7 @@ void UpdateGame()
 		DrawSphereWires(cursor3D, createRadius, 10, 10, GREEN);
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
 		{
-			sim.AddObject(createMass * 5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::models[0], floatText[2]);
+			sim.AddObject(createMass * 5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::sun, floatText[2], false);
 			placeMode = false;
 		}
 	}
@@ -135,7 +142,6 @@ void UpdateGame()
 	}
 	EndDrawing();
 }
-
 int main()
 {
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -151,63 +157,51 @@ int main()
 	worldCamera.projection = CAMERA_PERSPECTIVE;
 	worldCamera.up = Vector3{ 0.0f,1.0f,0.0f };
 	worldCamera.fovy = 45.0f;
-	// Sun (Centered at origin)
-	sim.AddObject(1.98850e+30, Vector3d(0, 0, 0), Vector3d(0, 0, 0), 6.96340e+08, YELLOW, &Objects::models[0], "Sun");
+	// ============================================================================
+	// SYSTEM PLANET BOUNDARIES
+	// ============================================================================
+	sim.AddObject(1.98900e+30, Vector3d(0.0, 0.0, 0.0), Vector3d(0.0, 0.0, 0.0), 6.96340e+08, RED, &Objects::sun, "Sun",true);
 
-	// Mercury & Venus
-	sim.AddObject(3.30110e+23, Vector3d(-5.67085190e+10, -5.85319600e+09, -2.76114410e+10), Vector3d(11820.130000, -1630.520000, -45560.410000), 2.43970e+06, GRAY, &Objects::models[1], "Mercury");
-	sim.AddObject(4.86750e+24, Vector3d(-1.07512320e+11, 6.23145100e+09, -1.21432110e+10), Vector3d(3890.120000, -198.450000, -34780.910000), 6.05180e+06, Color{ 250, 222, 112,255 }, &Objects::models[2], "Venus");
+	sim.AddObjectKeplerian(3.3011e23, 2439700.0, Color{ 210, 210, 210, 255 }, &Objects::mercury, "Mercury", 0.38709936 * AU_TO_M, 0.20564070, 7.00349211 * DEG2RAD, 48.29942987 * DEG2RAD, 29.19848673 * DEG2RAD, 103.94401953 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(4.8675e24, 6051800.0, Color{ 245, 222, 179, 255 }, &Objects::venus, "Venus", 0.72333664 * AU_TO_M, 0.00676645, 3.39447882 * DEG2RAD, 76.61041710 * DEG2RAD, 54.99272092 * DEG2RAD, 280.23034092 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(5.97237e24, 6371000.0, Color{ 160, 205, 255, 255 }, &Objects::earth, "Earth", 1.00000402 * AU_TO_M, 0.01670025, 359.99674793 * DEG2RAD, 0.00000000 * DEG2RAD, 103.01850255 * DEG2RAD, 357.53558384 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(6.4171e23, 3389500.0, Color{ 245, 165, 145, 255 }, &Objects::mars, "Mars", 1.52371496 * AU_TO_M, 0.09341381, 1.84765854 * DEG2RAD, 49.48639355 * DEG2RAD, 286.68108262 * DEG2RAD, 124.48577126 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(1.8982e27, 69911000.0, Color{ 252, 202, 164, 255 }, &Objects::jupiter, "Jupiter", 5.20285798 * AU_TO_M, 0.04835311, 1.30393765 * DEG2RAD, 100.52508326 * DEG2RAD, 274.25652970 * DEG2RAD, 58.32213120 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(5.6834e26, 58232000.0, Color{ 248, 232, 180, 255 }, &Objects::saturn, "Saturn", 9.53636328 * AU_TO_M, 0.05373431, 2.48647591 * DEG2RAD, 113.59025302 * DEG2RAD, 338.90387938 * DEG2RAD, 263.09188484 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(8.6810e25, 25362000.0, Color{ 185, 240, 245, 255 }, &Objects::uranus, "Uranus", 19.18867419 * AU_TO_M, 0.04724645, 0.77203047 * DEG2RAD, 74.02752679 * DEG2RAD, 97.02876550 * DEG2RAD, 249.30525198 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(1.02413e26, 24622000.0, Color{ 165, 190, 255, 255 }, &Objects::neptune, "Neptune", 30.06998849 * AU_TO_M, 0.00860324, 1.77013190 * DEG2RAD, 131.78295405 * DEG2RAD, 273.10120236 * DEG2RAD, 314.61217249 * DEG2RAD, MeanAnomaly, "Sun");
+	sim.AddObjectKeplerian(1.303e22, 1188300.0, Color{ 230, 215, 200, 255 }, &Objects::moon, "Pluto", 39.48203776 * AU_TO_M, 0.24884023, 17.14002411 * DEG2RAD, 110.30097805 * DEG2RAD, 113.75778060 * DEG2RAD, 51.17322485 * DEG2RAD, MeanAnomaly, "Sun");
 
-	// Earth & Moon
-	sim.AddObject(7.34200e+22, Vector3d(-2.48104890e+10, 3.56214000e+07, 1.47412340e+11), Vector3d(-29810.450000, 92.180000, -6138.120000), 1.73740e+06, LIGHTGRAY, &Objects::models[9], "Moon");
-	sim.AddObject(5.97237e+24, Vector3d(-2.51943210e+10, 1.12340000e+06, 1.47412340e+11), Vector3d(-29810.450000, 0.420000, -5120.330000), 6.37100e+06, BLUE, &Objects::models[3], "Earth");
-	
+	sim.AddObjectKeplerian(7.342e22, 1737400.0, Color{ 225, 225, 225, 255 }, &Objects::moon, "Moon", 384400000.0, 0.0554, 5.16 * DEG2RAD, 125.08 * DEG2RAD, 318.15 * DEG2RAD, 215.1876 * DEG2RAD, MeanAnomaly, "Earth");
 
-	// Mars, Phobos & Deimos
-	sim.AddObject(1.06590e+16, Vector3d(2.07900606e+11, -3.45105740e+09, 1.12341230e+11), Vector3d(-10450.220000, 412.110000, 20052.880000), 1.12670e+04, DARKGRAY, &Objects::models[9], "Phobos");
-	sim.AddObject(1.47620e+15, Vector3d(2.07891230e+11, -3.45050420e+09, 1.12364689e+11), Vector3d(-11801.520000, 412.110000, 22190.880000), 6.20000e+03, LIGHTGRAY, &Objects::models[9], "Deimos");
-	sim.AddObject(6.41710e+23, Vector3d(2.07891230e+11, -3.45123400e+09, 1.12341230e+11), Vector3d(-10450.220000, 412.110000, 22190.880000), 3.38950e+06, RED, &Objects::models[4], "Mars");
-	
+	sim.AddObjectKeplerian(1.0659e16, 11080.0, Color{ 215, 200, 195, 255 }, &Objects::moon, "Phobos", 9376000.0, 0.0151, 1.093 * DEG2RAD, 169.20 * DEG2RAD, 216.30 * DEG2RAD, 351.5587 * DEG2RAD, MeanAnomaly, "Mars");
+	sim.AddObjectKeplerian(1.4762e15, 6200.0, Color{ 225, 215, 205, 255 }, &Objects::moon, "Deimos", 23463200.0, 0.00033, 1.791 * DEG2RAD, 54.30 * DEG2RAD, 0.0 * DEG2RAD, 207.8504 * DEG2RAD, MeanAnomaly, "Mars");
 
-	// Jupiter & Galilean Moons
-	sim.AddObject(8.93190e+22, Vector3d(-5.96863408e+11, 1.11870194e+10, -5.28636799e+11), Vector3d(-18201.975689, 635.369353, -5393.196808), 1.82160e+06, YELLOW, &Objects::models[9], "Io");
-	sim.AddObject(4.79980e+22, Vector3d(-5.96645467e+11, 1.11751127e+10, -5.28072692e+11), Vector3d(-1757.835032, 722.881418, -2735.939412), 1.56080e+06, SKYBLUE, &Objects::models[9], "Europa");
-	sim.AddObject(1.48190e+23, Vector3d(-5.96772420e+11, 1.12154040e+10, -5.29383698e+11), Vector3d(-18698.602751, 291.527412, 4642.049062), 2.63410e+06, LIGHTGRAY, &Objects::models[9], "Ganymede");
-	sim.AddObject(1.07590e+23, Vector3d(-5.98828550e+11, 1.11083076e+10, -5.27416052e+11), Vector3d(-4496.283843, 53.455287, 16087.223778), 2.41030e+06, GRAY, &Objects::models[9], "Callisto");
-	sim.AddObject(1.89820e+27, Vector3d(-5.97218970e+11, 1.11737701e+10, -5.28410257e+11), Vector3d(-8822.608803, 235.613101, 9172.490490), 6.99110e+07, Color{ 255, 207, 153,255 }, &Objects::models[5], "Jupiter");
-	
+	sim.AddObjectKeplerian(8.9319e22, 1821600.0, Color{ 255, 245, 175, 255 }, &Objects::moon, "Io", 421800000.0, 0.0041, 0.05 * DEG2RAD, 43.97 * DEG2RAD, 84.129 * DEG2RAD, 181.4171 * DEG2RAD, MeanAnomaly, "Jupiter");
+	sim.AddObjectKeplerian(4.7998e22, 1560800.0, Color{ 240, 230, 215, 255 }, &Objects::moon, "Europa", 671100000.0, 0.0094, 0.47 * DEG2RAD, 219.106 * DEG2RAD, 88.970 * DEG2RAD, 314.3243 * DEG2RAD, MeanAnomaly, "Jupiter");
+	sim.AddObjectKeplerian(1.4819e23, 2634100.0, Color{ 215, 210, 200, 255 }, &Objects::moon, "Ganymede", 1070400000.0, 0.0013, 0.20 * DEG2RAD, 63.552 * DEG2RAD, 192.417 * DEG2RAD, 72.7886 * DEG2RAD, MeanAnomaly, "Jupiter");
+	sim.AddObjectKeplerian(1.0759e23, 2410300.0, Color{ 200, 195, 190, 255 }, &Objects::moon, "Callisto", 1882700000.0, 0.0074, 0.192 * DEG2RAD, 298.848 * DEG2RAD, 52.643 * DEG2RAD, 237.6424 * DEG2RAD, MeanAnomaly, "Jupiter");
 
-	// Saturn & Major Moons
-	sim.AddObject(3.74930e+19, Vector3d(9.58044007e+11, -4.12357223e+10, 1.08918696e+12), Vector3d(-12565.837145, 701.740732, -7394.653761), 1.98200e+05, LIGHTGRAY, &Objects::models[9], "Mimas");
-	sim.AddObject(1.08022e+20, Vector3d(9.57989714e+11, -4.12345869e+10, 1.08904238e+12), Vector3d(-3130.111728, 308.960639, -5588.957550), 2.52100e+05, WHITE, &Objects::models[9], "Enceladus");
-	sim.AddObject(6.17449e+20, Vector3d(9.58383484e+11, -4.12321271e+10, 1.08936478e+12), Vector3d(-16703.731480, 111.866970, 12737.007824), 5.31100e+05, SKYBLUE, &Objects::models[9], "Tethys");
-	sim.AddObject(1.09545e+21, Vector3d(9.57889957e+11, -4.12345047e+10, 1.08892984e+12), Vector3d(-2268.759249, 309.898553, -2359.926744), 5.61400e+05, GRAY, &Objects::models[9], "Dione");
-	sim.AddObject(2.30652e+21, Vector3d(9.57688164e+11, -4.12351591e+10, 1.08910604e+12), Vector3d(-7122.416210, 262.688566, -2254.825838), 7.63800e+05, DARKGRAY, &Objects::models[9], "Rhea");
-	sim.AddObject(1.34520e+23, Vector3d(9.59434097e+11, -4.12364306e+10, 1.08942353e+12), Vector3d(-8667.146483, 344.775410, 11500.919722), 2.57473e+06, Color{ 255, 190, 120 ,255 }, &Objects::models[9], "Titan");
-	sim.AddObject(1.80564e+21, Vector3d(9.60829528e+11, -4.18529320e+10, 1.09135088e+12), Vector3d(-9381.683626, 964.375569, 8832.744186), 7.34500e+05, BROWN, &Objects::models[9], "Iapetus");
-	sim.AddObject(5.68340e+26, Vector3d(9.58214560e+11, -4.12345600e+10, 1.08912340e+12), Vector3d(-7410.550000, 312.880000, 6230.140000), 5.82320e+07, BEIGE, &Objects::models[6], "Saturn");
-	
+	sim.AddObjectKeplerian(3.7493e19, 198200.0, Color{ 230, 230, 235, 255 }, &Objects::moon, "Mimas", 185539000.0, 0.0196, 1.574 * DEG2RAD, 173.0 * DEG2RAD, 332.5 * DEG2RAD, 156.7281 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(1.0802e20, 252100.0, Color{ 245, 250, 255, 255 }, &Objects::moon, "Enceladus", 238037000.0, 0.0047, 0.009 * DEG2RAD, 342.0 * DEG2RAD, 197.0 * DEG2RAD, 296.4878 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(6.1745e20, 531100.0, Color{ 235, 235, 240, 255 }, &Objects::moon, "Tethys", 294672000.0, 0.0001, 1.12 * DEG2RAD, 260.0 * DEG2RAD, 45.0 * DEG2RAD, 348.4687 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(1.0955e21, 561400.0, Color{ 230, 230, 235, 255 }, &Objects::moon, "Dione", 377415000.0, 0.0022, 0.019 * DEG2RAD, 57.0 * DEG2RAD, 284.0 * DEG2RAD, 326.4704 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(2.3065e21, 763800.0, Color{ 225, 225, 230, 255 }, &Objects::moon, "Rhea", 527068000.0, 0.001258, 0.345 * DEG2RAD, 351.0 * DEG2RAD, 241.0 * DEG2RAD, 135.4214 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(1.3452e23, 2574730.0, Color{ 245, 215, 165, 255 }, &Objects::moon, "Titan", 1221870000.0, 0.0288, 0.34854 * DEG2RAD, 28.06 * DEG2RAD, 180.53 * DEG2RAD, 50.7606 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(5.6199e18, 135000.0, Color{ 220, 210, 200, 255 }, &Objects::moon, "Hyperion", 1481009000.0, 0.123006, 0.43 * DEG2RAD, 94.0 * DEG2RAD, 220.0 * DEG2RAD, 154.3063 * DEG2RAD, MeanAnomaly, "Saturn");
+	sim.AddObjectKeplerian(1.8056e21, 734500.0, Color{ 215, 210, 205, 255 }, &Objects::moon, "Iapetus", 3560820000.0, 0.028612, 15.47 * DEG2RAD, 75.79 * DEG2RAD, 271.60 * DEG2RAD, 255.5405 * DEG2RAD, MeanAnomaly, "Saturn");
 
-	// Uranus & Major Moons
-	sim.AddObject(6.59000e+19, Vector3d(2.14580875e+12, -2.89027350e+10, -1.98765430e+12), Vector3d(4580.120000, -540.420000, -1754.210000), 2.35800e+05, GRAY, &Objects::models[9], "Miranda");
-	sim.AddObject(1.25100e+21, Vector3d(2.14567890e+12, -2.87214400e+10, -1.98765430e+12), Vector3d(10088.910000, -58.910000, 4910.440000), 5.78900e+05, LIGHTGRAY, &Objects::models[9], "Ariel");
-	sim.AddObject(1.27500e+21, Vector3d(2.14541290e+12, -2.89123400e+10, -1.98765430e+12), Vector3d(4580.120000, -58.910000, 9577.120000), 5.84700e+05, DARKGRAY, &Objects::models[9], "Umbriel");
-	sim.AddObject(3.40000e+21, Vector3d(2.14567890e+12, -2.93486400e+10, -1.98765430e+12), Vector3d(936.440000, -58.910000, 4910.440000), 7.88900e+05, BEIGE, &Objects::models[9], "Titania");
-	sim.AddObject(3.07600e+21, Vector3d(2.14626242e+12, -2.89123400e+10, -1.98765430e+12), Vector3d(4580.120000, -3209.140000, 4910.440000), 7.61400e+05, BROWN, &Objects::models[9], "Oberon");
-	sim.AddObject(8.68100e+25, Vector3d(2.14567890e+12, -2.89123400e+10, -1.98765430e+12), Vector3d(4580.120000, -58.910000, 4910.440000), 2.53620e+07, SKYBLUE, &Objects::models[7], "Uranus");
-	
+	sim.AddObjectKeplerian(6.59e19, 235800.0, Color{ 220, 225, 230, 255 }, &Objects::moon, "Miranda", 129390000.0, 0.0013, 4.232 * DEG2RAD, 326.43 * DEG2RAD, 68.31 * DEG2RAD, 59.7417 * DEG2RAD, MeanAnomaly, "Uranus");
+	sim.AddObjectKeplerian(1.353e21, 578900.0, Color{ 230, 235, 240, 255 }, &Objects::moon, "Ariel", 191020000.0, 0.0012, 0.260 * DEG2RAD, 22.39 * DEG2RAD, 115.35 * DEG2RAD, 259.4800 * DEG2RAD, MeanAnomaly, "Uranus");
+	sim.AddObjectKeplerian(1.172e21, 584700.0, Color{ 205, 210, 215, 255 }, &Objects::moon, "Umbriel", 266000000.0, 0.0039, 0.128 * DEG2RAD, 33.48 * DEG2RAD, 84.71 * DEG2RAD, 209.4970 * DEG2RAD, MeanAnomaly, "Uranus");
+	sim.AddObjectKeplerian(3.527e21, 788400.0, Color{ 225, 220, 220, 255 }, &Objects::moon, "Titania", 435910000.0, 0.0011, 0.340 * DEG2RAD, 99.77 * DEG2RAD, 284.40 * DEG2RAD, 329.2235 * DEG2RAD, MeanAnomaly, "Uranus");
+	sim.AddObjectKeplerian(3.014e21, 761400.0, Color{ 220, 215, 215, 255 }, &Objects::moon, "Oberon", 583520000.0, 0.0014, 0.058 * DEG2RAD, 279.77 * DEG2RAD, 104.40 * DEG2RAD, 14.7355 * DEG2RAD, MeanAnomaly, "Uranus");
 
-	// Neptune, Triton & Proteus
-	sim.AddObject(5.00000e+19, Vector3d(4.46120883e+12, -9.87654755e+10, -4.12230842e+11), Vector3d(7923.993369, -116.770553, 7072.592670), 2.10000e+05, GRAY, &Objects::models[9], "Proteus");
-	sim.AddObject(2.13900e+22, Vector3d(4.46115726e+12, -9.87435829e+10, -4.12691227e+11), Vector3d(4468.856970, 1556.632966, 4628.191212), 1.35340e+06, VIOLET, &Objects::models[9], "Triton");
-	sim.AddObject(1.02409e+26, Vector3d(4.46123450e+12, -9.87654300e+10, -4.12345670e+11), Vector3d(485.660000, -112.340000, 5412.890000), 2.46220e+07, DARKBLUE, &Objects::models[8], "Neptune");
-	
+	sim.AddObjectKeplerian(2.139e22, 1353400.0, Color{ 235, 220, 225, 255 }, &Objects::moon, "Triton", 354759000.0, 0.000016, 156.885 * DEG2RAD, 177.608 * DEG2RAD, 66.142 * DEG2RAD, 194.7109 * DEG2RAD, MeanAnomaly, "Neptune");
+	sim.AddObjectKeplerian(4.4e19, 210000.0, Color{ 210, 215, 220, 255 }, &Objects::moon, "Proteus", 117647000.0, 0.00053, 0.524 * DEG2RAD, 15.0 * DEG2RAD, 120.0 * DEG2RAD, 155.7154 * DEG2RAD, MeanAnomaly, "Neptune");
+	sim.AddObjectKeplerian(3.1e19, 170000.0, Color{ 215, 220, 225, 255 }, &Objects::moon, "Nereid", 5513818000.0, 0.7507, 7.232 * DEG2RAD, 326.0 * DEG2RAD, 290.0 * DEG2RAD, 318.2037 * DEG2RAD, MeanAnomaly, "Neptune");
 
-	// Pluto & Charon
-	sim.AddObject(1.58600e+21, Vector3d(2.38453159e+12, -3.61245000e+11, 5.21489000e+12), Vector3d(-4185.400000, 1409.120000, 1986.850000), 6.06000e+05, LIGHTGRAY, &Objects::models[9], "Charon");
-
-	sim.AddObject(1.30300e+22, Vector3d(2.38451200e+12, -3.61245000e+11, 5.21489000e+12), Vector3d(-4185.400000, 1215.600000, 1892.300000), 1.18830e+06, BEIGE, &Objects::models[9], "Pluto");
-
+	sim.AddObjectKeplerian(1.586e21, 606000.0, Color{ 215, 215, 220, 255 }, &Objects::moon, "Charon", 19591000.0, 0.0002, 0.080 * DEG2RAD, 223.046 * DEG2RAD, 150.0 * DEG2RAD, 338.7779 * DEG2RAD, MeanAnomaly, "Pluto");
 
 
 

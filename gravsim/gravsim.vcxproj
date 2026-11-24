@@ -193,11 +193,16 @@
       <FloatingPointModel>Fast</FloatingPointModel>
       <FloatingPointExceptions>false</FloatingPointExceptions>
       <ControlFlowGuard>false</ControlFlowGuard>
+      <AdditionalOptions>/clang:-O3 /clang:-march=native /clang:-fopenmp
+ %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>raylib.lib;winmm.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>raylib.lib;winmm.lib;libomp.lib
+;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(LLVMInstallDir)\lib
+</AdditionalLibraryDirectories>
     </Link>
     <Manifest>
       <EnableSegmentHeap>true</EnableSegmentHeap>
@@ -226,6 +231,7 @@
   <ItemGroup>
     <ClInclude Include="CameraAdvanced.h" />
     <ClInclude Include="Constants.h" />
+    <ClInclude Include="Debris.h" />
     <ClInclude Include="Models.h" />
     <ClInclude Include="Object.h">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>

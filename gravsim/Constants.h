@@ -6,3 +6,10 @@ enum Integrators
 	RK78 = 0,
 	Yoshida8 = 1
 };
+enum Anomalies
+{
+	MeanAnomaly = 0,
+	TrueAnomaly = 1,
+	EccentricAnomaly = 2,
+
+};
