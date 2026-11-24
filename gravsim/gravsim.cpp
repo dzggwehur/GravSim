@@ -32,20 +32,40 @@ bool enableCreateGUI = false;
 bool highlight[8] = { false };
 float createMass = 0;
 float createRadius = 0;
+double AU_TO_M = 149597870700.0;
 std::array<char[1223], 5> floatText{};
 float initialOrbitCameraDist = 0;
 bool placeMode = false;
-constexpr double AU_TO_M = 149597870700.0;
+int maxSubSteps = 1000000;
+//constexpr double AU_TO_M = 149597870700.0;
 Simulation sim;
 #include <cmath>
 #include <fstream>
+#include <chrono>
 
+void GetSubstepLimit(int integrator)
+{
+	sim.AddObject(1.0, Vector3d(-5.0, 0.0, 0.0), Vector3d(0.0, 0.0, -std::sqrt((6.67430e-11 * 1.0) / 20.0)), 1.0, BLACK, &Objects::sun, "Substep Test Object", false);
+	sim.AddObject(1.0, Vector3d(5.0, 0.0, 0.0), Vector3d(0.0, 0.0, std::sqrt((6.67430e-11 * 1.0) / 20.0)), 1.0, BLACK, &Objects::sun, "Substep Test Object 2", false);
 
+	auto startTime = std::chrono::high_resolution_clock::now();
+	for (int i = 0; i < 250000; ++i)
+	{
+		sim.Update(objectToTrack, simTime, integrator, maxSubSteps);
+	}
+	auto endTime = std::chrono::high_resolution_clock::now();
+	double duration = std::chrono::duration<double, std::milli>(endTime - startTime).count();
+	std::cout << duration << " ms\n";
+
+	maxSubSteps = std::clamp(static_cast<int>(2000.0 / std::max(duration / 1000.0, 0.001)), 1, 500000);
+	simTime = 0.0;
+	sim.simulationObjects.clear();
+}
 void UpdateGame()
 {
 	if (!paused)
 	{
-		sim.Update(objectToTrack, simTime, RK78);
+		sim.Update(objectToTrack, simTime, IAS15, maxSubSteps);
 	}
 	if (IsKeyPressed(KEY_ESCAPE))
 	{
@@ -140,12 +160,15 @@ void UpdateGame()
 			enableCreateGUI = false;
 		}
 	}
+	DrawFPS(10, 700);
 	EndDrawing();
+
 }
 int main()
 {
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	
+	GetSubstepLimit(IAS15);
+	std::cout << maxSubSteps << std::endl;
 	InitWindow(400, 500, "Test");
 	SetExitKey(KEY_F8);
 
@@ -160,7 +183,9 @@ int main()
 	// ============================================================================
 	// SYSTEM PLANET BOUNDARIES
 	// ============================================================================
-	sim.AddObject(1.98900e+30, Vector3d(0.0, 0.0, 0.0), Vector3d(0.0, 0.0, 0.0), 6.96340e+08, RED, &Objects::sun, "Sun",true);
+	// Equal-mass circular binary separated by exactly 8.0 meters (R = 4.0 m each)
+	// Mass chosen so orbital period is ~10 seconds (vOrb ~ 2.51 m/s)
+	sim.AddObject(1.98900e+30, Vector3d(0.0, 0.0, 0.0), Vector3d(0.0, 0.0, 0.0), 6.96340e+08, RED, &Objects::sun, "Sun", true);
 
 	sim.AddObjectKeplerian(3.3011e23, 2439700.0, Color{ 210, 210, 210, 255 }, &Objects::mercury, "Mercury", 0.38709936 * AU_TO_M, 0.20564070, 7.00349211 * DEG2RAD, 48.29942987 * DEG2RAD, 29.19848673 * DEG2RAD, 103.94401953 * DEG2RAD, MeanAnomaly, "Sun");
 	sim.AddObjectKeplerian(4.8675e24, 6051800.0, Color{ 245, 222, 179, 255 }, &Objects::venus, "Venus", 0.72333664 * AU_TO_M, 0.00676645, 3.39447882 * DEG2RAD, 76.61041710 * DEG2RAD, 54.99272092 * DEG2RAD, 280.23034092 * DEG2RAD, MeanAnomaly, "Sun");
@@ -202,6 +227,8 @@ int main()
 	sim.AddObjectKeplerian(3.1e19, 170000.0, Color{ 215, 220, 225, 255 }, &Objects::moon, "Nereid", 5513818000.0, 0.7507, 7.232 * DEG2RAD, 326.0 * DEG2RAD, 290.0 * DEG2RAD, 318.2037 * DEG2RAD, MeanAnomaly, "Neptune");
 
 	sim.AddObjectKeplerian(1.586e21, 606000.0, Color{ 215, 215, 220, 255 }, &Objects::moon, "Charon", 19591000.0, 0.0002, 0.080 * DEG2RAD, 223.046 * DEG2RAD, 150.0 * DEG2RAD, 338.7779 * DEG2RAD, MeanAnomaly, "Pluto");
+
+
 
 
 
