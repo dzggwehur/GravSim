@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -180,7 +180,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <LanguageStandard>stdcpp23</LanguageStandard>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
       <AdditionalIncludeDirectories>C:\Users\rusla\source\repos\gravsim\gravsim\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
@@ -238,10 +238,12 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Web Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="raymathDouble.h" />
-    <ClInclude Include="Simulation.h" />
+    <ClInclude Include="Simulation.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="gravsim.cpp" />
+    <ClCompile Include="Simulation.cpp" />
+    <ClCompile Include="integrators.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

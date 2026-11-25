@@ -5,7 +5,7 @@ ADVANCED 2: Develop a guardrail on an online system or in the future which can h
 #define _CRT_SECURE_NO_WARNINGS
 #include <iostream>
 #include <raylib.h>
-#include "Simulation.h"
+#include "Simulation.hpp"
 #include "Models.h"
 #include "CameraAdvanced.h"
 #include <rlgl.h>
@@ -38,7 +38,7 @@ float initialOrbitCameraDist = 0;
 bool placeMode = false;
 int maxSubSteps = 1000000;
 double initialEnergy = 0.0;
-int integratorGlobal = DOP853;
+int integratorGlobal = IAS15;
 //constexpr double AU_TO_M = 149597870700.0;
 Simulation sim;
 #include <cmath>
@@ -78,12 +78,16 @@ void GetSubstepLimit(int integrator)
 
 	sim.AddObject(1.0,
 		Vector3d(-5.0, 0.0, 0.0),
-		Vector3d(0.0, 0.0, -std::sqrt((GRAVITATIONAL_CONSTANT) / 20.0)),
+		Vector3d(0.0, 0.0, -std::sqrt((GRAVITATIONAL_CONSTANT) / 20.0)), 
+		Vector3d{}, 
+		Vector3d{},
 		1.0, BLACK, &Objects::sun, "Test Object", false);
 
 	sim.AddObject(1.0,
 		Vector3d(5.0, 0.0, 0.0),
 		Vector3d(0.0, 0.0, std::sqrt((GRAVITATIONAL_CONSTANT) / 20.0)),
+		Vector3d{},
+		Vector3d{},
 		1.0, BLACK, &Objects::sun, "Test Object 2", false);
 
 	// Warm-up
@@ -176,7 +180,7 @@ void UpdateGame()
 		DrawSphereWires(cursor3D, createRadius, 10, 10, GREEN);
 		if (IsMouseButtonDown(MOUSE_BUTTON_LEFT))
 		{
-			sim.AddObject(createMass * 5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::sun, floatText[2], false);
+			//sim.AddObject(createMass * 5.9720e24, cursor3D + realCameraPosition, Vector3d{}, createRadius, WHITE, &Objects::sun, floatText[2], false);
 			placeMode = false;
 		}
 	}
@@ -217,39 +221,51 @@ void UpdateGame()
 	}
 	DrawFPS(10, 700);
 	EndDrawing();
-	if (sim.simulationObjects.size() >= 2)
-	{
-		const double currentEnergy =
-			CalculateEnergy(sim.simulationObjects[0], sim.simulationObjects[1]);
-
-		const double relativeEnergyError =
-			std::abs((currentEnergy - initialEnergy) / initialEnergy);
-		std::cout << "Energy error compared to initial: " << relativeEnergyError << " after " << simTime << " seconds of simulation. Integrator: " << IntegratorName(integratorGlobal) << std::endl;
-	}
 }
 
 int main()
 {
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-	//GetSubstepLimit(integratorGlobal);
-	constexpr double D = 10.0;
-	constexpr double R = D * 0.5;
-	constexpr double T = 10.0;
+	GetSubstepLimit(integratorGlobal);
+	constexpr double TARGET_PERIOD = 1000.0; // seconds per orbit
+	constexpr double D_OVER_RS = 55.0;       // Semi-major axis = 55 Schwarzschild radii (visible inspiral in ~5-6 orbits)
+	constexpr double eccentricity = 0.75;
 
-	constexpr double eccentricity = 0.5;
+	// Solve for exact black hole mass M that gives TARGET_PERIOD at D = D_OVER_RS * R_s
+	// From Kepler's 3rd Law: T = 2*pi * sqrt(D^3 / (2*G*M)) with R_s = 2*G*M / c^2
+	const double M = (TARGET_PERIOD * C * C * C) /
+		(2.0 * PI * GRAVITATIONAL_CONSTANT * std::sqrt(2.0 * D_OVER_RS * D_OVER_RS * D_OVER_RS));
 
-	const double vOrb = (2.0 * PI * R) / T;
-	const double vPeriapsis = vOrb * std::sqrt(1.0 + eccentricity);
+	// Real Schwarzschild radius in meters (~1.05e8 m)
+	const double schwarzschildRadius = (2.0 * GRAVITATIONAL_CONSTANT * M) / (C * C);
 
-	const double M = (2.0 * D * vOrb * vOrb) / GRAVITATIONAL_CONSTANT;
+	// Semi-major axis and periapsis start positions in meters
+	const double D = D_OVER_RS * schwarzschildRadius;
+	const double rPeriapsis = D * (1.0 - eccentricity); // 13.75 * R_s
+	const double rStart = 0.5 * rPeriapsis;             // ~7.2e8 m from center of mass
 
-	sim.AddObject(M, Vector3d(-R, 0.0, 0.0),
+	// Exact vis-viva periapsis speed in m/s (~0.36c relative)
+	const double vRelPeriapsis = std::sqrt(GRAVITATIONAL_CONSTANT * (2.0 * M) * (2.0 / rPeriapsis - 1.0 / D));
+	const double vPeriapsis = 0.5 * vRelPeriapsis;
+
+	// Tilted spin for BH_A (angularSpin = 4th arg, orientation = 5th arg)
+	sim.AddObject(M, Vector3d(-rStart, 0.0, 0.0),
 		Vector3d(0.0, 0.0, -vPeriapsis),
-		0.5, RED, &Objects::sun, "StarA", false);
+		Vector3d(4.0, 3.0, 0.0),         // angularSpin (rad/s)
+		Vector3d{},                      // initial orientation (radians)
+		schwarzschildRadius, RED, &Objects::sun, "BH_A", false);
 
-	sim.AddObject(M, Vector3d(R, 0.0, 0.0),
+	// Opposite tilted spin for BH_B
+	sim.AddObject(M, Vector3d(rStart, 0.0, 0.0),
 		Vector3d(0.0, 0.0, vPeriapsis),
-		0.5, SKYBLUE, &Objects::sun, "StarB", false);
+		Vector3d(-4.0, 3.0, 0.0),        // angularSpin (rad/s)
+		Vector3d{},                      // initial orientation (radians)
+		schwarzschildRadius, SKYBLUE, &Objects::sun, "BH_B", false);
+
+
+
+
+
 
 	initialEnergy = CalculateEnergy(sim.simulationObjects[0], sim.simulationObjects[1]);
 	InitWindow(400, 500, "Test");

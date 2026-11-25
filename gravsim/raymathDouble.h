@@ -535,7 +535,7 @@ inline Vector3d Vector3dMax(Vector3d v1, Vector3d v2)
 
     return result;
 }
-Vector3d Vector3dTransform(Vector3d v, Matrix mat)
+inline Vector3d Vector3dTransform(Vector3d v, Matrix mat)
 {
     double x = v.x;
     double y = v.y;

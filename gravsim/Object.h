@@ -3,11 +3,14 @@
 #include "raymathDouble.h"
 #include "CameraAdvanced.h"
 #include <deque>
+#include <string>
 class Object
 {
 	public:
 		double mass=0.0;
 		double radius=0.0;
+		Vector3d angularSpin{};
+		Vector3d orientation{};
 		Model* model=nullptr;
 		std::deque<Vector3d> trail;
 		Vector3d AppliedImpulse{};

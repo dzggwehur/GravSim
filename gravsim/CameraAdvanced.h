@@ -191,7 +191,7 @@ static void CameraPitch(Camera* camera, float angle, bool lockView, bool rotateA
         camera->up = Vector3RotateByAxisAngle(camera->up, right, angle);
     }
 }
-void UpdateCameraCustom(Camera* camera, float* camSpeed, Vector3d& worldCamPos)
+inline void UpdateCameraCustom(Camera* camera, float* camSpeed, Vector3d& worldCamPos)
 {
     Vector2 mousePositionDelta = GetMouseDelta();
     // Camera speeds based on frame time
@@ -218,8 +218,8 @@ void UpdateCameraCustom(Camera* camera, float* camSpeed, Vector3d& worldCamPos)
     if (IsKeyDown(KEY_LEFT_CONTROL)) CameraMoveUp(camera, -cameraMoveSpeed, worldCamPos);
     if (std::abs(GetMouseWheelMove()) > 0.2f) *camSpeed *= 1 + std::clamp(GetMouseWheelMove() * 0.05f, -0.05f, 0.05f);
 }
-Vector3 offset;
-void UpdateOrbitalCamera(Camera& camera, Vector3d& worldCamPos, const Vector3d& targetPos, float& trackDistance, bool lock)
+inline Vector3 offset;
+inline void UpdateOrbitalCamera(Camera& camera, Vector3d& worldCamPos, const Vector3d& targetPos, float& trackDistance, bool lock)
 {
     double wheel = GetMouseWheelMove();
     if (wheel != 0.0) trackDistance *= (1.0 - wheel * 0.1);
